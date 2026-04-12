@@ -4,6 +4,7 @@
   "private": true,
   "description": "PWA e app Android para calculo de custo de impressao 3D.",
   "scripts": {
+    "build:web": "powershell -Command \"New-Item -ItemType Directory -Force www | Out-Null; Copy-Item index.html,style.css,script.js,sw.js,manifest.webmanifest -Destination www -Force; New-Item -ItemType Directory -Force www\\assets | Out-Null; Copy-Item assets\\* www\\assets -Force\"",
     "serve": "npx serve .",
     "cap:copy": "npx cap copy",
     "cap:sync": "npx cap sync",

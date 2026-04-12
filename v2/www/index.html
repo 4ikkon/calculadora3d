@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#08111f">
+  <meta name="description" content="Calculadora de custo para impressao 3D com historico local, modo instalavel e suporte offline.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-192.svg">
+  <link rel="stylesheet" href="style.css">
+  <title>PrintCalc 3D v2</title>
+</head>
+<body>
+  <div class="background-glow background-glow-left"></div>
+  <div class="background-glow background-glow-right"></div>
+
+  <main class="app-shell">
+    <section class="hero-card">
+      <div class="hero-copy">
+        <span class="eyebrow">V2 mobile ready</span>
+        <h1>PrintCalc 3D</h1>
+        <p>Calcule custo, sugestao de venda e margem com experiencia de app, historico local e suporte offline.</p>
+
+        <div class="hero-actions">
+          <button type="button" id="installButton" class="primary-button hidden">Instalar app</button>
+          <div id="installHint" class="install-hint">Abra no celular e use "Adicionar a tela inicial" se o navegador nao mostrar o botao.</div>
+        </div>
+      </div>
+
+      <div class="hero-metrics">
+        <div class="metric-card">
+          <span>Filamento</span>
+          <strong id="heroFilament">R$ 0,00</strong>
+        </div>
+        <div class="metric-card">
+          <span>Custo total</span>
+          <strong id="heroTotal">R$ 0,00</strong>
+        </div>
+        <div class="metric-card">
+          <span>Venda x3</span>
+          <strong id="heroSale">R$ 0,00</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel form-panel">
+        <div class="panel-header">
+          <h2>Novo calculo</h2>
+          <p>Preencha os dados do projeto para gerar a precificacao.</p>
+        </div>
+
+        <form id="calculatorForm" class="calculator-form">
+          <label>
+            <span>Nome do projeto</span>
+            <input type="text" id="projectName" placeholder="Ex: Suporte para camera" required>
+          </label>
+
+          <div class="field-grid">
+            <label>
+              <span>Peso em gramas</span>
+              <input type="number" id="weight" min="0" step="0.01" placeholder="0,00" required>
+            </label>
+
+            <label>
+              <span>Tempo de impressao (hh:mm)</span>
+              <input type="text" id="printTime" inputmode="numeric" placeholder="03:30" required>
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              <span>Preco do kg do filamento</span>
+              <input type="number" id="filamentPrice" min="0" step="0.01" placeholder="0,00" required>
+            </label>
+
+            <label>
+              <span>Custos extras</span>
+              <input type="number" id="extraCosts" min="0" step="0.01" value="0">
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              <span>Consumo da impressora (kWh)</span>
+              <input type="number" id="printerConsumption" min="0" step="0.01" value="0.12">
+            </label>
+
+            <label>
+              <span>Tarifa de energia</span>
+              <input type="number" id="energyRate" min="0" step="0.01" value="0.80">
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Calcular e salvar</button>
+            <button type="button" id="clearFormButton" class="ghost-button">Limpar</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel result-panel">
+        <div class="panel-header">
+          <h2>Resultado</h2>
+          <p>Resumo completo do custo e da sugestao de venda.</p>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <p>Os valores calculados aparecerao aqui assim que voce preencher o formulario.</p>
+        </div>
+
+        <div id="resultContent" class="result-content hidden">
+          <div class="summary-card">
+            <span class="summary-label">Projeto</span>
+            <strong id="resultProjectName">-</strong>
+            <small id="resultTime">0h</small>
+          </div>
+
+          <div class="cost-list">
+            <div class="cost-row">
+              <span>Custo de filamento</span>
+              <strong id="filamentCost">R$ 0,00</strong>
+            </div>
+            <div class="cost-row">
+              <span>Custo de energia</span>
+              <strong id="energyCost">R$ 0,00</strong>
+            </div>
+            <div class="cost-row">
+              <span>Depreciacao</span>
+              <strong id="depreciationCost">R$ 0,00</strong>
+            </div>
+            <div class="cost-row">
+              <span>Custos extras</span>
+              <strong id="extraCostValue">R$ 0,00</strong>
+            </div>
+            <div class="cost-row total-row">
+              <span>Custo total</span>
+              <strong id="totalCost">R$ 0,00</strong>
+            </div>
+          </div>
+
+          <div class="sales-grid" id="salesGrid"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="panel-header history-header">
+        <div>
+          <h2>Historico</h2>
+          <p>Salvo localmente neste navegador ou app instalado.</p>
+        </div>
+        <button type="button" id="clearHistoryButton" class="ghost-button">Apagar historico</button>
+      </div>
+
+      <div id="historyEmptyState" class="empty-state compact">
+        <p>Nenhum calculo salvo ainda.</p>
+      </div>
+
+      <div id="historyList" class="history-list"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
