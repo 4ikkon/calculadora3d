@@ -1,0 +1,9 @@
+{
+  "appId": "com.printcalc3d.app",
+  "appName": "PrintCalc 3D",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
