@@ -47,6 +47,20 @@ const percentFormatter = new Intl.NumberFormat("pt-BR", {
 
 let deferredInstallPrompt = null;
 
+function normalizeProjectName(value) {
+  return value.trim().toLocaleLowerCase("pt-BR");
+}
+
+function maskTimeInput(value) {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
 function parseTimeToHours(value) {
   const normalized = value.trim();
   const match = normalized.match(/^(\d{1,3}):([0-5]\d)$/);
@@ -165,8 +179,17 @@ function saveHistory(history) {
 }
 
 function addToHistory(result) {
-  const history = getHistory().filter((item) => item.createdAt !== result.createdAt);
-  history.unshift(result);
+  const currentHistory = getHistory();
+  const normalizedName = normalizeProjectName(result.projectName);
+  const previousEntry = currentHistory.find((item) => normalizeProjectName(item.projectName) === normalizedName);
+  const history = currentHistory.filter((item) => normalizeProjectName(item.projectName) !== normalizedName);
+
+  history.unshift({
+    ...result,
+    createdAt: previousEntry ? previousEntry.createdAt : result.createdAt,
+    updatedAt: new Date().toISOString()
+  });
+
   saveHistory(history.slice(0, 20));
   renderHistory();
 }
@@ -191,7 +214,7 @@ function renderHistory() {
           <h3>${item.projectName}</h3>
           <p class="history-meta">${item.weight} g • ${formatHours(item.hours)}</p>
         </div>
-        <time datetime="${item.createdAt}">${new Date(item.createdAt).toLocaleDateString("pt-BR")}</time>
+        <time datetime="${item.updatedAt || item.createdAt}">${new Date(item.updatedAt || item.createdAt).toLocaleDateString("pt-BR")}</time>
       </div>
       <div class="history-stats">
         <div><span>Custo</span><strong>${formatCurrency(item.totalCost)}</strong></div>
@@ -289,6 +312,10 @@ clearFormButton.addEventListener("click", resetForm);
 clearHistoryButton.addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
   renderHistory();
+});
+
+fields.printTime.addEventListener("input", () => {
+  fields.printTime.value = maskTimeInput(fields.printTime.value);
 });
 
 fields.printTime.addEventListener("blur", () => {
