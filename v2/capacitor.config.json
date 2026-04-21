@@ -1,6 +1,6 @@
 {
   "appId": "com.printcalc3d.app",
-  "appName": "PrintCalc 3D",
+  "appName": "MarinsManager",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {

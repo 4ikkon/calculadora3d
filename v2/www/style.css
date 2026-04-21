@@ -1,12 +1,14 @@
 :root {
   --bg: #07111f;
   --panel: rgba(12, 24, 41, 0.88);
+  --panel-strong: rgba(12, 24, 41, 0.98);
   --border: rgba(160, 191, 255, 0.14);
   --text: #f3f7ff;
   --muted: #9fb1cb;
   --accent: #60a5fa;
   --accent-strong: #22d3ee;
   --success: #34d399;
+  --warning: #fbbf24;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
@@ -53,22 +55,128 @@ body {
 }
 
 .app-shell {
-  width: min(1200px, calc(100% - 2rem));
+  width: min(1400px, calc(100% - 2rem));
   margin: 0 auto;
   padding: max(1rem, env(safe-area-inset-top)) 0 max(2rem, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 1.5rem;
 }
 
-.hero-card,
-.panel {
+.sidebar,
+.panel,
+.hero-card {
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   backdrop-filter: blur(18px);
 }
 
+.sidebar {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  border-radius: 28px;
+  padding: 1.4rem;
+  display: grid;
+  gap: 1.4rem;
+}
+
+.brand-block h1,
+.hero-copy h3,
+.topbar h2,
+.panel-header h3 {
+  margin: 0;
+}
+
+.brand-block p,
+.hero-copy p,
+.panel-header p,
+.empty-state p,
+.history-meta,
+.sale-meta,
+.install-hint,
+.placeholder-body p,
+.menu-button small {
+  color: var(--muted);
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.12);
+  color: #cfe4ff;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.eyebrow.subtle {
+  margin-bottom: 0.35rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.menu-nav {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.menu-button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(191, 219, 254, 0.08);
+  border-radius: 20px;
+  padding: 0.95rem 1rem;
+  background: rgba(8, 16, 29, 0.72);
+  color: var(--text);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.menu-button.active {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.24), rgba(34, 211, 238, 0.12));
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+.menu-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.workspace {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.topbar {
+  border-radius: 24px;
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.topbar-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.6rem;
+}
+
+.app-view {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.active-view {
+  display: grid;
+}
+
 .hero-card {
   display: grid;
-  grid-template-columns: 1.3fr 1fr;
+  grid-template-columns: 1.25fr 1fr;
   gap: 1.5rem;
   padding: 1.5rem;
   border-radius: 28px;
@@ -84,44 +192,17 @@ body {
   pointer-events: none;
 }
 
-.eyebrow {
-  display: inline-block;
-  margin-bottom: 0.75rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(96, 165, 250, 0.12);
-  color: #cfe4ff;
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.compact-hero {
+  grid-template-columns: 1.05fr 0.95fr;
 }
 
-.hero-copy h1 {
-  margin: 0;
-  font-size: clamp(2.1rem, 5vw, 3.6rem);
-  line-height: 0.95;
+.hero-copy h3 {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  line-height: 0.98;
 }
 
-.hero-copy p,
-.panel-header p,
-.empty-state p,
-.history-meta,
-.sale-meta,
-.install-hint {
-  color: var(--muted);
-}
-
-.hero-actions {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1.25rem;
-}
-
-.install-hint {
-  font-size: 0.9rem;
-}
-
-.hero-metrics {
+.hero-metrics,
+.dashboard-metrics {
   display: grid;
   gap: 1rem;
 }
@@ -129,7 +210,9 @@ body {
 .metric-card,
 .summary-card,
 .sale-card,
-.history-item {
+.history-item,
+.module-card,
+.placeholder-panel {
   border: 1px solid rgba(191, 219, 254, 0.12);
   background: linear-gradient(180deg, rgba(10, 21, 37, 0.92), rgba(8, 16, 29, 0.84));
 }
@@ -151,11 +234,18 @@ body {
   font-size: 1.6rem;
 }
 
+.module-grid,
 .content-grid {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
   gap: 1.5rem;
-  margin-top: 1.5rem;
+}
+
+.module-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.content-grid {
+  grid-template-columns: 1.05fr 0.95fr;
 }
 
 .panel {
@@ -163,9 +253,40 @@ body {
   padding: 1.4rem;
 }
 
-.panel-header h2 {
-  margin: 0;
+.panel-header h3 {
   font-size: 1.25rem;
+}
+
+.module-card {
+  padding: 1.4rem;
+  border-radius: 24px;
+  display: grid;
+  gap: 1rem;
+}
+
+.module-link {
+  justify-self: start;
+}
+
+.muted-card {
+  opacity: 0.88;
+}
+
+.placeholder-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+  color: #ffe29a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.placeholder-body {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
 }
 
 .calculator-form,
@@ -223,7 +344,7 @@ button {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 button:hover {
@@ -318,10 +439,6 @@ button:hover {
   color: var(--success);
 }
 
-.history-panel {
-  margin-top: 1.5rem;
-}
-
 .history-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -371,9 +488,25 @@ button:hover {
   font-size: 0.95rem;
 }
 
+@media (max-width: 1080px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .menu-nav {
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    overflow-x: auto;
+  }
+}
+
 @media (max-width: 920px) {
   .hero-card,
-  .content-grid {
+  .content-grid,
+  .module-grid {
     grid-template-columns: 1fr;
   }
 
@@ -388,16 +521,29 @@ button:hover {
     padding-top: max(0.75rem, env(safe-area-inset-top));
   }
 
-  .hero-card,
-  .panel {
+  .sidebar,
+  .panel,
+  .hero-card {
     border-radius: 22px;
   }
 
-  .field-grid,
+  .topbar,
   .form-actions,
   .history-header {
-    grid-template-columns: 1fr;
     display: grid;
+    justify-content: stretch;
+  }
+
+  .topbar-actions {
+    justify-items: stretch;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .history-list {

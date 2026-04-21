@@ -1,4 +1,27 @@
-const STORAGE_KEY = "print3d-calculator-history-v2";
+const STORAGE_KEY = "marinsmanager-budget-history";
+
+const SECTION_CONFIG = {
+  dashboard: {
+    eyebrow: "Painel principal",
+    title: "Visao geral"
+  },
+  budgets: {
+    eyebrow: "Modulo ativo",
+    title: "Orcamentos"
+  },
+  orders: {
+    eyebrow: "Planejamento",
+    title: "Pedidos"
+  },
+  production: {
+    eyebrow: "Planejamento",
+    title: "Producao"
+  },
+  clients: {
+    eyebrow: "Planejamento",
+    title: "Clientes"
+  }
+};
 
 const calculatorForm = document.getElementById("calculatorForm");
 const clearFormButton = document.getElementById("clearFormButton");
@@ -10,6 +33,11 @@ const resultContent = document.getElementById("resultContent");
 const salesGrid = document.getElementById("salesGrid");
 const installButton = document.getElementById("installButton");
 const installHint = document.getElementById("installHint");
+const activeSectionTitle = document.getElementById("activeSectionTitle");
+const activeSectionEyebrow = document.getElementById("activeSectionEyebrow");
+const menuButtons = Array.from(document.querySelectorAll(".menu-button"));
+const appViews = Array.from(document.querySelectorAll(".app-view"));
+const sectionLinks = Array.from(document.querySelectorAll("[data-section-target]"));
 
 const fields = {
   projectName: document.getElementById("projectName"),
@@ -31,7 +59,10 @@ const output = {
   energyCost: document.getElementById("energyCost"),
   depreciationCost: document.getElementById("depreciationCost"),
   extraCostValue: document.getElementById("extraCostValue"),
-  totalCost: document.getElementById("totalCost")
+  totalCost: document.getElementById("totalCost"),
+  dashboardProjects: document.getElementById("dashboardProjects"),
+  dashboardLatestCost: document.getElementById("dashboardLatestCost"),
+  dashboardAverageSale: document.getElementById("dashboardAverageSale")
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -178,6 +209,17 @@ function saveHistory(history) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
 }
 
+function updateDashboard(history) {
+  const latest = history[0];
+  const averageSale = history.length === 0
+    ? 0
+    : history.reduce((sum, item) => sum + item.suggestions[1].salePrice, 0) / history.length;
+
+  output.dashboardProjects.textContent = String(history.length);
+  output.dashboardLatestCost.textContent = latest ? formatCurrency(latest.totalCost) : formatCurrency(0);
+  output.dashboardAverageSale.textContent = formatCurrency(averageSale);
+}
+
 function addToHistory(result) {
   const currentHistory = getHistory();
   const normalizedName = normalizeProjectName(result.projectName);
@@ -190,8 +232,10 @@ function addToHistory(result) {
     updatedAt: new Date().toISOString()
   });
 
-  saveHistory(history.slice(0, 20));
+  const trimmedHistory = history.slice(0, 20);
+  saveHistory(trimmedHistory);
   renderHistory();
+  updateDashboard(trimmedHistory);
 }
 
 function renderHistory() {
@@ -200,10 +244,12 @@ function renderHistory() {
 
   if (history.length === 0) {
     historyEmptyState.classList.remove("hidden");
+    updateDashboard(history);
     return;
   }
 
   historyEmptyState.classList.add("hidden");
+  updateDashboard(history);
 
   history.forEach((item) => {
     const article = document.createElement("article");
@@ -232,6 +278,7 @@ function renderHistory() {
       fields.energyRate.value = item.energyRate;
       fields.extraCosts.value = item.extraCosts;
       renderResult(item);
+      activateSection("budgets");
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -249,6 +296,40 @@ function resetForm() {
   output.heroFilament.textContent = formatCurrency(0);
   output.heroTotal.textContent = formatCurrency(0);
   output.heroSale.textContent = formatCurrency(0);
+}
+
+function activateSection(sectionName) {
+  const config = SECTION_CONFIG[sectionName];
+  if (!config) {
+    return;
+  }
+
+  activeSectionEyebrow.textContent = config.eyebrow;
+  activeSectionTitle.textContent = config.title;
+
+  menuButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.section === sectionName);
+  });
+
+  appViews.forEach((view) => {
+    const isTarget = view.dataset.view === sectionName;
+    view.classList.toggle("hidden", !isTarget);
+    view.classList.toggle("active-view", isTarget);
+  });
+}
+
+function setupNavigation() {
+  menuButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      activateSection(button.dataset.section);
+    });
+  });
+
+  sectionLinks.forEach((button) => {
+    button.addEventListener("click", () => {
+      activateSection(button.dataset.sectionTarget);
+    });
+  });
 }
 
 function setupInstallPrompt() {
@@ -302,6 +383,7 @@ calculatorForm.addEventListener("submit", (event) => {
     const result = calculateCosts(values);
     renderResult(result);
     addToHistory(result);
+    activateSection("budgets");
   } catch (error) {
     window.alert(error.message);
   }
@@ -329,5 +411,7 @@ fields.printTime.addEventListener("blur", () => {
 });
 
 renderHistory();
+setupNavigation();
+activateSection("dashboard");
 setupInstallPrompt();
 registerServiceWorker();

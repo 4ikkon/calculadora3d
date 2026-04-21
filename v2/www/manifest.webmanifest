@@ -1,7 +1,7 @@
 {
-  "name": "PrintCalc 3D",
-  "short_name": "PrintCalc",
-  "description": "Calculadora de custo para impressao 3D com historico local, instalacao em celular e uso offline.",
+  "name": "MarinsManager",
+  "short_name": "MarinsManager",
+  "description": "Sistema para gerenciar orcamentos e operacoes do negocio de impressao 3D.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#08111f",
