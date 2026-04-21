@@ -75,6 +75,14 @@
               <strong id="dashboardLatestCost">R$ 0,00</strong>
             </div>
             <div class="metric-card">
+              <span>Pedidos salvos</span>
+              <strong id="dashboardOrders">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>Receita em pedidos</span>
+              <strong id="dashboardOrdersRevenue">R$ 0,00</strong>
+            </div>
+            <div class="metric-card">
               <span>Venda media x3</span>
               <strong id="dashboardAverageSale">R$ 0,00</strong>
             </div>
@@ -90,12 +98,12 @@
             <button type="button" class="ghost-button module-link" data-section-target="budgets">Abrir modulo</button>
           </article>
 
-          <article class="panel module-card muted-card">
+          <article class="panel module-card">
             <div class="panel-header">
               <h3>Pedidos</h3>
-              <p>Organize fila de producao, status e prazos dos clientes.</p>
+              <p>Registre clientes, adicione varios itens e gere pedidos com base nos orcamentos.</p>
             </div>
-            <span class="placeholder-badge">Em breve</span>
+            <button type="button" class="ghost-button module-link" data-section-target="orders">Abrir modulo</button>
           </article>
 
           <article class="panel module-card muted-card">
@@ -236,6 +244,10 @@
               </div>
 
               <div class="sales-grid" id="salesGrid"></div>
+
+              <div class="result-actions">
+                <button type="button" id="createOrderFromBudgetButton" class="ghost-button">Criar pedido com este orcamento</button>
+              </div>
             </div>
           </article>
         </section>
@@ -258,16 +270,140 @@
       </section>
 
       <section id="ordersSection" class="app-view hidden" data-view="orders">
-        <article class="panel placeholder-panel">
-          <div class="panel-header">
-            <h3>Pedidos</h3>
-            <p>Este modulo vai centralizar entrada de pedidos, status e entregas.</p>
+        <section class="hero-card compact-hero">
+          <div class="hero-copy">
+            <span class="eyebrow">Modulo de pedidos</span>
+            <h3>Receba pedidos com varios itens e vincule ao seu historico de orcamentos.</h3>
+            <p>Monte o pedido do cliente com nome, telefone, varios produtos e quantidades, reaproveitando valores de projetos ja precificados.</p>
           </div>
-          <div class="placeholder-body">
-            <span class="placeholder-badge">Em breve</span>
-            <p>Na proxima evolucao, podemos montar cadastro de pedidos, prioridades e prazos.</p>
+          <div class="hero-metrics">
+            <div class="metric-card">
+              <span>Total de pedidos</span>
+              <strong id="ordersMetricCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>Receita total</span>
+              <strong id="ordersMetricRevenue">R$ 0,00</strong>
+            </div>
+            <div class="metric-card">
+              <span>Ultimo pedido</span>
+              <strong id="ordersMetricLatest">Nenhum</strong>
+            </div>
           </div>
-        </article>
+        </section>
+
+        <section class="content-grid orders-grid">
+          <article class="panel form-panel">
+            <div class="panel-header">
+              <h3>Novo pedido</h3>
+              <p>Cadastre o cliente e monte os itens do pedido. Voce pode vincular cada item a um orcamento salvo.</p>
+            </div>
+
+            <form id="orderForm" class="calculator-form order-form">
+              <div class="field-grid">
+                <label>
+                  <span>Nome do cliente</span>
+                  <input type="text" id="customerName" placeholder="Ex: Joao da Silva" required>
+                </label>
+
+                <label>
+                  <span>Telefone</span>
+                  <input type="tel" id="customerPhone" placeholder="(00) 00000-0000" required>
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label>
+                  <span>Status do pedido</span>
+                  <select id="orderStatus">
+                    <option value="novo">Novo</option>
+                    <option value="em_producao">Em producao</option>
+                    <option value="aguardando">Aguardando</option>
+                    <option value="entregue">Entregue</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Observacao</span>
+                  <input type="text" id="orderNotes" placeholder="Opcional">
+                </label>
+              </div>
+
+              <div class="order-items-toolbar">
+                <div>
+                  <h4>Itens do pedido</h4>
+                  <p>Adicione um ou mais produtos ao mesmo pedido.</p>
+                </div>
+                <button type="button" id="addOrderItemButton" class="ghost-button">Adicionar item</button>
+              </div>
+
+              <div id="orderItemsList" class="order-items-list"></div>
+
+              <div class="order-total-bar">
+                <span>Total do pedido</span>
+                <strong id="orderTotal">R$ 0,00</strong>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="primary-button" id="saveOrderButton">Salvar pedido</button>
+                <button type="button" id="clearOrderFormButton" class="ghost-button">Limpar</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel result-panel">
+            <div class="panel-header">
+              <h3>Resumo</h3>
+              <p>Os pedidos podem ser vinculados aos orcamentos ja salvos para aproveitar o valor sugerido.</p>
+            </div>
+
+            <div class="order-summary-card">
+              <div class="summary-row">
+                <span>Itens no formulario</span>
+                <strong id="orderItemsCount">0</strong>
+              </div>
+              <div class="summary-row">
+                <span>Itens vinculados a orcamento</span>
+                <strong id="orderLinkedItemsCount">0</strong>
+              </div>
+              <div class="summary-row">
+                <span>Status atual</span>
+                <strong id="orderCurrentStatus">Novo</strong>
+              </div>
+              <div class="summary-row total-row">
+                <span>Total estimado</span>
+                <strong id="orderSummaryTotal">R$ 0,00</strong>
+              </div>
+            </div>
+
+            <div class="helper-list">
+              <div class="helper-item">
+                <strong>Vinculo com orcamento</strong>
+                <p>Ao escolher um projeto salvo, o produto e o valor sugerido x3 podem ser preenchidos automaticamente.</p>
+              </div>
+              <div class="helper-item">
+                <strong>Edicao de pedidos</strong>
+                <p>Toque em um pedido salvo para carregar no formulario e atualizar sem perder o historico.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-header history-header">
+            <div>
+              <h3>Historico de pedidos</h3>
+              <p>Revise pedidos recebidos, quantidades e totais por cliente.</p>
+            </div>
+            <button type="button" id="clearOrdersButton" class="ghost-button">Apagar pedidos</button>
+          </div>
+
+          <div id="ordersEmptyState" class="empty-state compact">
+            <p>Nenhum pedido salvo ainda.</p>
+          </div>
+
+          <div id="ordersList" class="orders-list"></div>
+        </section>
       </section>
 
       <section id="productionSection" class="app-view hidden" data-view="production">
