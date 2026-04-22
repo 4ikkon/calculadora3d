@@ -1,4 +1,4 @@
-const CACHE_NAME = "printcalc-3d-v2-cache-v1";
+const CACHE_NAME = "marinsmanager-cache-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -34,19 +34,47 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  const requestUrl = new URL(event.request.url);
+  const isNavigationRequest = event.request.mode === "navigate";
+  const isAppShellAsset = APP_SHELL.some((asset) => requestUrl.pathname.endsWith(asset.replace("./", "/")));
 
-      return fetch(event.request)
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
+          const clonedResponse = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", clonedResponse));
+          return networkResponse;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  if (isAppShellAsset) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        return fetch(event.request).then((networkResponse) => {
           const clonedResponse = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clonedResponse));
           return networkResponse;
-        })
-        .catch(() => caches.match("./index.html"));
-    })
+        });
+      })
+    );
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        const clonedResponse = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clonedResponse));
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

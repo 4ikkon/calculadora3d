@@ -240,6 +240,18 @@ body {
   gap: 1.5rem;
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 1.5rem;
+}
+
+.dashboard-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
 .module-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -266,6 +278,60 @@ body {
 
 .module-link {
   justify-self: start;
+}
+
+.dashboard-panel {
+  align-content: start;
+}
+
+.action-card {
+  text-align: left;
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.3rem;
+  cursor: pointer;
+}
+
+.action-card strong {
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.action-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.action-kicker {
+  color: #b9d7ff;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-module-list,
+.dashboard-highlights {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.dashboard-module-item,
+.dashboard-highlight {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(191, 219, 254, 0.08);
+  background: rgba(6, 13, 24, 0.45);
+}
+
+.dashboard-module-item strong,
+.dashboard-highlight span {
+  display: block;
+}
+
+.dashboard-module-item span {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
 }
 
 .muted-card {
@@ -462,6 +528,10 @@ button:hover {
 }
 
 .orders-grid {
+  align-items: start;
+}
+
+.products-grid {
   align-items: start;
 }
 
@@ -760,6 +830,8 @@ button:hover {
 
 @media (max-width: 920px) {
   .hero-card,
+  .dashboard-actions-grid,
+  .dashboard-grid,
   .content-grid,
   .module-grid,
   .order-item-grid {
