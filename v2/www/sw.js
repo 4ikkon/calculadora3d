@@ -1,4 +1,4 @@
-const CACHE_NAME = "marinsmanager-cache-v5";
+const CACHE_NAME = "marinsmanager-cache-v6";
 const APP_SHELL = [
   "./",
   "./index.html",

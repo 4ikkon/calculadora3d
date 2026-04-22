@@ -248,7 +248,7 @@ body {
 
 .dashboard-actions-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -525,6 +525,16 @@ button:hover {
 
 .result-actions {
   margin-top: 1rem;
+}
+
+.custom-sale-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(191, 219, 254, 0.12);
+  background: linear-gradient(180deg, rgba(10, 21, 37, 0.92), rgba(8, 16, 29, 0.84));
 }
 
 .orders-grid {

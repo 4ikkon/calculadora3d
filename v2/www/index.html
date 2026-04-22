@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08111f">
-  <meta name="description" content="MarinsManager é a central para gerenciar orçamentos, produtos e pedidos do seu negócio de impressão 3D.">
+  <meta name="description" content="MarinsManager é a central para gerenciar clientes, orçamentos, produtos e pedidos do seu negócio de impressão 3D.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icon-192.svg">
   <link rel="stylesheet" href="style.css">
@@ -19,13 +19,17 @@
       <div class="brand-block">
         <span class="eyebrow">Marins Studio</span>
         <h1>MarinsManager</h1>
-        <p>Gerencie orçamentos, produtos e pedidos do seu negócio de impressão 3D em um só lugar.</p>
+        <p>Gerencie clientes, orçamentos, produtos e pedidos do seu negócio de impressão 3D em um só lugar.</p>
       </div>
 
       <nav class="menu-nav" aria-label="Menu principal">
         <button type="button" class="menu-button active" data-section="dashboard">
           <span class="menu-label">Início</span>
           <small>Painel principal</small>
+        </button>
+        <button type="button" class="menu-button" data-section="clients">
+          <span class="menu-label">Clientes</span>
+          <small>Nova tela</small>
         </button>
         <button type="button" class="menu-button" data-section="budgets">
           <span class="menu-label">Orçamentos</span>
@@ -41,10 +45,6 @@
         </button>
         <button type="button" class="menu-button" data-section="production">
           <span class="menu-label">Produção</span>
-          <small>Em breve</small>
-        </button>
-        <button type="button" class="menu-button" data-section="clients">
-          <span class="menu-label">Clientes</span>
           <small>Em breve</small>
         </button>
       </nav>
@@ -67,9 +67,13 @@
           <div class="hero-copy">
             <span class="eyebrow">Central de operações</span>
             <h3>Escolha o que deseja fazer agora.</h3>
-            <p>Use os botões abaixo para abrir a tela específica de orçamento, produto ou pedido sem misturar tudo na mesma visualização.</p>
+            <p>Use os botões abaixo para abrir a tela específica de cliente, orçamento, produto ou pedido sem misturar tudo na mesma visualização.</p>
           </div>
           <div class="hero-metrics dashboard-metrics">
+            <div class="metric-card">
+              <span>Clientes salvos</span>
+              <strong id="dashboardClients">0</strong>
+            </div>
             <div class="metric-card">
               <span>Projetos salvos</span>
               <strong id="dashboardProjects">0</strong>
@@ -90,6 +94,12 @@
         </section>
 
         <section class="dashboard-actions-grid">
+          <button type="button" class="action-card panel" data-section-target="clients">
+            <span class="action-kicker">Ação rápida</span>
+            <strong>Cadastrar cliente</strong>
+            <p>Abra a tela de clientes e monte seu cadastro base.</p>
+          </button>
+
           <button type="button" class="action-card panel" data-section-target="budgets">
             <span class="action-kicker">Ação rápida</span>
             <strong>Criar orçamento</strong>
@@ -117,15 +127,19 @@
             </div>
             <div class="dashboard-module-list">
               <div class="dashboard-module-item">
-                <strong>1. Cadastre os produtos</strong>
+                <strong>1. Cadastre os clientes</strong>
+                <span>Monte a base de pessoas que compram de você.</span>
+              </div>
+              <div class="dashboard-module-item">
+                <strong>2. Cadastre os produtos</strong>
                 <span>Monte seu catálogo com os itens que vende com frequência.</span>
               </div>
               <div class="dashboard-module-item">
-                <strong>2. Faça o orçamento</strong>
-                <span>Calcule custo, venda sugerida e salve o projeto.</span>
+                <strong>3. Faça o orçamento</strong>
+                <span>Calcule custo, venda sugerida e venda personalizada.</span>
               </div>
               <div class="dashboard-module-item">
-                <strong>3. Gere o pedido</strong>
+                <strong>4. Gere o pedido</strong>
                 <span>Escolha o cliente, os produtos e vincule ao orçamento quando precisar.</span>
               </div>
             </div>
@@ -138,16 +152,107 @@
             </div>
             <div class="dashboard-highlights">
               <div class="dashboard-highlight">
+                <span>Orçamentos agora podem ser vinculados a clientes</span>
+              </div>
+              <div class="dashboard-highlight">
                 <span>Pedidos usam apenas produtos cadastrados</span>
               </div>
               <div class="dashboard-highlight">
-                <span>Itens do pedido podem aproveitar valores dos orçamentos</span>
-              </div>
-              <div class="dashboard-highlight">
-                <span>Históricos ficam salvos localmente no dispositivo</span>
+                <span>Itens do pedido podem usar preços sugeridos do orçamento</span>
               </div>
             </div>
           </article>
+        </section>
+      </section>
+
+      <section id="clientsSection" class="app-view hidden" data-view="clients">
+        <section class="hero-card compact-hero">
+          <div class="hero-copy">
+            <span class="eyebrow">Tela de clientes</span>
+            <h3>Cadastre seus clientes para usar no orçamento e nos pedidos.</h3>
+            <p>Monte uma base simples com nome, telefone e observações para agilizar o atendimento.</p>
+          </div>
+          <div class="hero-metrics">
+            <div class="metric-card">
+              <span>Total de clientes</span>
+              <strong id="clientsMetricCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>Último cliente</span>
+              <strong id="clientsMetricLatest">Nenhum</strong>
+            </div>
+            <div class="metric-card">
+              <span>Com telefone</span>
+              <strong id="clientsMetricPhones">0</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-grid products-grid">
+          <article class="panel form-panel">
+            <div class="panel-header">
+              <h3>Novo cliente</h3>
+              <p>Cadastre um cliente para selecionar nos orçamentos e pedidos.</p>
+            </div>
+
+            <form id="clientForm" class="calculator-form">
+              <div class="field-grid">
+                <label>
+                  <span>Nome do cliente</span>
+                  <input type="text" id="clientName" placeholder="Ex: João da Silva" required>
+                </label>
+
+                <label>
+                  <span>Telefone</span>
+                  <input type="tel" id="clientPhone" placeholder="(00) 00000-0000" required>
+                </label>
+              </div>
+
+              <label>
+                <span>Observação</span>
+                <input type="text" id="clientNotes" placeholder="Opcional">
+              </label>
+
+              <div class="form-actions">
+                <button type="submit" class="primary-button" id="saveClientButton">Salvar cliente</button>
+                <button type="button" id="clearClientFormButton" class="ghost-button">Limpar</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel result-panel">
+            <div class="panel-header">
+              <h3>Orientação</h3>
+              <p>Os clientes cadastrados aqui aparecem como seleção na tela de orçamentos.</p>
+            </div>
+
+            <div class="helper-list">
+              <div class="helper-item">
+                <strong>Base de atendimento</strong>
+                <p>Use essa tela para manter os contatos organizados e reaproveitar dados no dia a dia.</p>
+              </div>
+              <div class="helper-item">
+                <strong>Seleção no orçamento</strong>
+                <p>Depois de cadastrar, o cliente já poderá ser escolhido ao criar um orçamento.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-header history-header">
+            <div>
+              <h3>Clientes cadastrados</h3>
+              <p>Toque em um cliente para carregar no formulário e atualizar seus dados.</p>
+            </div>
+            <button type="button" id="clearClientsButton" class="ghost-button">Apagar clientes</button>
+          </div>
+
+          <div id="clientsEmptyState" class="empty-state compact">
+            <p>Nenhum cliente cadastrado ainda.</p>
+          </div>
+
+          <div id="clientsList" class="orders-list"></div>
         </section>
       </section>
 
@@ -156,7 +261,7 @@
           <div class="hero-copy">
             <span class="eyebrow">Tela de orçamentos</span>
             <h3>Precificação inteligente para cada projeto.</h3>
-            <p>Calcule custo total, sugestão de venda e aproveite o histórico salvo localmente para revisar ou atualizar projetos.</p>
+            <p>Calcule custo total, sugestões de venda e também um valor personalizado para medir lucro ou prejuízo.</p>
           </div>
           <div class="hero-metrics">
             <div class="metric-card">
@@ -182,10 +287,17 @@
             </div>
 
             <form id="calculatorForm" class="calculator-form">
-              <label>
-                <span>Nome do projeto</span>
-                <input type="text" id="projectName" placeholder="Ex: Suporte para câmera" required>
-              </label>
+              <div class="field-grid">
+                <label>
+                  <span>Cliente</span>
+                  <select id="budgetClientId"></select>
+                </label>
+
+                <label>
+                  <span>Nome do projeto</span>
+                  <input type="text" id="projectName" placeholder="Ex: Suporte para câmera" required>
+                </label>
+              </div>
 
               <div class="field-grid">
                 <label>
@@ -223,6 +335,11 @@
                 </label>
               </div>
 
+              <label>
+                <span>Valor de venda personalizado (opcional)</span>
+                <input type="number" id="customSalePrice" min="0" step="0.01" placeholder="0,00">
+              </label>
+
               <div class="form-actions">
                 <button type="submit" class="primary-button">Calcular e salvar</button>
                 <button type="button" id="clearFormButton" class="ghost-button">Limpar</button>
@@ -233,7 +350,7 @@
           <article class="panel result-panel">
             <div class="panel-header">
               <h3>Resultado</h3>
-              <p>Resumo completo do custo e da sugestão de venda.</p>
+              <p>Resumo completo do custo, da sugestão de venda e do valor personalizado.</p>
             </div>
 
             <div id="emptyState" class="empty-state">
@@ -245,6 +362,7 @@
                 <span class="summary-label">Projeto</span>
                 <strong id="resultProjectName">-</strong>
                 <small id="resultTime">0h</small>
+                <small id="resultClientName">Cliente não selecionado</small>
               </div>
 
               <div class="cost-list">
@@ -271,6 +389,21 @@
               </div>
 
               <div class="sales-grid" id="salesGrid"></div>
+
+              <div id="customSaleCard" class="custom-sale-card hidden">
+                <div class="summary-row">
+                  <span>Venda personalizada</span>
+                  <strong id="customSaleValue">R$ 0,00</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Resultado</span>
+                  <strong id="customSaleProfit">R$ 0,00</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Margem</span>
+                  <strong id="customSaleMargin">0%</strong>
+                </div>
+              </div>
 
               <div class="result-actions">
                 <button type="button" id="createOrderFromBudgetButton" class="ghost-button">Criar pedido com este orçamento</button>
@@ -399,7 +532,7 @@
           <div class="hero-copy">
             <span class="eyebrow">Tela de pedidos</span>
             <h3>Monte pedidos com vários itens e produtos do seu catálogo.</h3>
-            <p>Escolha o cliente, selecione os produtos cadastrados e vincule ao orçamento quando quiser reaproveitar o valor sugerido.</p>
+            <p>Escolha o cliente, selecione os produtos cadastrados e defina o valor unitário usando as opções de lucro do orçamento quando quiser.</p>
           </div>
           <div class="hero-metrics">
             <div class="metric-card">
@@ -479,7 +612,7 @@
           <article class="panel result-panel">
             <div class="panel-header">
               <h3>Resumo</h3>
-              <p>Os pedidos podem ser vinculados aos orçamentos já salvos para aproveitar o valor sugerido.</p>
+              <p>Os pedidos podem usar preços vindos das opções de lucro do orçamento para cada item.</p>
             </div>
 
             <div class="order-summary-card">
@@ -507,8 +640,8 @@
                 <p>Antes de montar um pedido, cadastre os produtos na tela de Produtos.</p>
               </div>
               <div class="helper-item">
-                <strong>Vínculo com orçamento</strong>
-                <p>Ao escolher um orçamento salvo, o valor sugerido x3 pode preencher automaticamente o preço do item.</p>
+                <strong>Faixas de preço do orçamento</strong>
+                <p>Ao escolher um orçamento, você poderá selecionar x2, x3, x4 ou venda personalizada como valor unitário.</p>
               </div>
             </div>
           </article>
@@ -540,19 +673,6 @@
           <div class="placeholder-body">
             <span class="placeholder-badge">Em breve</span>
             <p>Na próxima evolução, podemos montar fila de impressão e apontamento de tempo real.</p>
-          </div>
-        </article>
-      </section>
-
-      <section id="clientsSection" class="app-view hidden" data-view="clients">
-        <article class="panel placeholder-panel">
-          <div class="panel-header">
-            <h3>Clientes</h3>
-            <p>Este módulo vai concentrar contatos, histórico e oportunidades de venda.</p>
-          </div>
-          <div class="placeholder-body">
-            <span class="placeholder-badge">Em breve</span>
-            <p>Na próxima evolução, podemos criar cadastro de clientes e registro de conversas.</p>
           </div>
         </article>
       </section>

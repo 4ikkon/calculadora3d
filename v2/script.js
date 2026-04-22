@@ -1,32 +1,15 @@
 const BUDGET_STORAGE_KEY = "marinsmanager-budget-history";
+const CLIENT_STORAGE_KEY = "marinsmanager-clients-history";
 const PRODUCT_STORAGE_KEY = "marinsmanager-products-history";
 const ORDER_STORAGE_KEY = "marinsmanager-orders-history";
 
 const SECTION_CONFIG = {
-  dashboard: {
-    eyebrow: "Painel principal",
-    title: "Início"
-  },
-  budgets: {
-    eyebrow: "Tela ativa",
-    title: "Orçamentos"
-  },
-  products: {
-    eyebrow: "Tela ativa",
-    title: "Produtos"
-  },
-  orders: {
-    eyebrow: "Tela ativa",
-    title: "Pedidos"
-  },
-  production: {
-    eyebrow: "Planejamento",
-    title: "Produção"
-  },
-  clients: {
-    eyebrow: "Planejamento",
-    title: "Clientes"
-  }
+  dashboard: { eyebrow: "Painel principal", title: "Início" },
+  clients: { eyebrow: "Tela ativa", title: "Clientes" },
+  budgets: { eyebrow: "Tela ativa", title: "Orçamentos" },
+  products: { eyebrow: "Tela ativa", title: "Produtos" },
+  orders: { eyebrow: "Tela ativa", title: "Pedidos" },
+  production: { eyebrow: "Planejamento", title: "Produção" }
 };
 
 const STATUS_LABELS = {
@@ -53,6 +36,14 @@ const appViews = Array.from(document.querySelectorAll(".app-view"));
 const sectionLinks = Array.from(document.querySelectorAll("[data-section-target]"));
 const createOrderFromBudgetButton = document.getElementById("createOrderFromBudgetButton");
 
+const clientForm = document.getElementById("clientForm");
+const clearClientFormButton = document.getElementById("clearClientFormButton");
+const clearClientsButton = document.getElementById("clearClientsButton");
+const clientsList = document.getElementById("clientsList");
+const clientsEmptyState = document.getElementById("clientsEmptyState");
+const saveClientButton = document.getElementById("saveClientButton");
+const budgetClientId = document.getElementById("budgetClientId");
+
 const productForm = document.getElementById("productForm");
 const clearProductFormButton = document.getElementById("clearProductFormButton");
 const clearProductsButton = document.getElementById("clearProductsButton");
@@ -76,7 +67,14 @@ const fields = {
   filamentPrice: document.getElementById("filamentPrice"),
   printerConsumption: document.getElementById("printerConsumption"),
   energyRate: document.getElementById("energyRate"),
-  extraCosts: document.getElementById("extraCosts")
+  extraCosts: document.getElementById("extraCosts"),
+  customSalePrice: document.getElementById("customSalePrice")
+};
+
+const clientFields = {
+  name: document.getElementById("clientName"),
+  phone: document.getElementById("clientPhone"),
+  notes: document.getElementById("clientNotes")
 };
 
 const productFields = {
@@ -99,15 +97,27 @@ const output = {
   heroSale: document.getElementById("heroSale"),
   resultProjectName: document.getElementById("resultProjectName"),
   resultTime: document.getElementById("resultTime"),
+  resultClientName: document.getElementById("resultClientName"),
   filamentCost: document.getElementById("filamentCost"),
   energyCost: document.getElementById("energyCost"),
   depreciationCost: document.getElementById("depreciationCost"),
   extraCostValue: document.getElementById("extraCostValue"),
   totalCost: document.getElementById("totalCost"),
+  customSaleCard: document.getElementById("customSaleCard"),
+  customSaleValue: document.getElementById("customSaleValue"),
+  customSaleProfit: document.getElementById("customSaleProfit"),
+  customSaleMargin: document.getElementById("customSaleMargin"),
+  dashboardClients: document.getElementById("dashboardClients"),
   dashboardProjects: document.getElementById("dashboardProjects"),
   dashboardProducts: document.getElementById("dashboardProducts"),
   dashboardOrders: document.getElementById("dashboardOrders"),
   dashboardOrdersRevenue: document.getElementById("dashboardOrdersRevenue"),
+  clientsMetricCount: document.getElementById("clientsMetricCount"),
+  clientsMetricLatest: document.getElementById("clientsMetricLatest"),
+  clientsMetricPhones: document.getElementById("clientsMetricPhones"),
+  productsMetricCount: document.getElementById("productsMetricCount"),
+  productsMetricLatest: document.getElementById("productsMetricLatest"),
+  productsMetricAverage: document.getElementById("productsMetricAverage"),
   orderTotal: document.getElementById("orderTotal"),
   orderItemsCount: document.getElementById("orderItemsCount"),
   orderLinkedItemsCount: document.getElementById("orderLinkedItemsCount"),
@@ -115,10 +125,7 @@ const output = {
   orderSummaryTotal: document.getElementById("orderSummaryTotal"),
   ordersMetricCount: document.getElementById("ordersMetricCount"),
   ordersMetricRevenue: document.getElementById("ordersMetricRevenue"),
-  ordersMetricLatest: document.getElementById("ordersMetricLatest"),
-  productsMetricCount: document.getElementById("productsMetricCount"),
-  productsMetricLatest: document.getElementById("productsMetricLatest"),
-  productsMetricAverage: document.getElementById("productsMetricAverage")
+  ordersMetricLatest: document.getElementById("ordersMetricLatest")
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -134,6 +141,7 @@ const percentFormatter = new Intl.NumberFormat("pt-BR", {
 
 let deferredInstallPrompt = null;
 let currentBudgetResult = null;
+let editingClientId = null;
 let editingProductId = null;
 let editingOrderId = null;
 
@@ -170,9 +178,7 @@ function parseTimeToHours(value) {
   if (!match) {
     return null;
   }
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  return hours + minutes / 60;
+  return Number(match[1]) + Number(match[2]) / 60;
 }
 
 function readStorage(key) {
@@ -187,6 +193,14 @@ function readStorage(key) {
 
 function writeStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function getClients() {
+  return readStorage(CLIENT_STORAGE_KEY);
+}
+
+function saveClients(clients) {
+  writeStorage(CLIENT_STORAGE_KEY, clients);
 }
 
 function getBudgetHistory() {
@@ -213,6 +227,125 @@ function saveOrders(orders) {
   writeStorage(ORDER_STORAGE_KEY, orders);
 }
 
+function getClientById(id) {
+  return getClients().find((client) => client.id === id) || null;
+}
+
+function getBudgetById(id) {
+  return getBudgetHistory().find((budget) => budget.id === id) || null;
+}
+
+function getProductById(id) {
+  return getProducts().find((product) => product.id === id) || null;
+}
+
+function getBudgetPriceOptions(budget) {
+  if (!budget) {
+    return [];
+  }
+
+  const options = [
+    { value: "x2", label: `Venda x2 • ${formatCurrency(budget.suggestions[0].salePrice)}`, price: budget.suggestions[0].salePrice },
+    { value: "x3", label: `Venda x3 • ${formatCurrency(budget.suggestions[1].salePrice)}`, price: budget.suggestions[1].salePrice },
+    { value: "x4", label: `Venda x4 • ${formatCurrency(budget.suggestions[2].salePrice)}`, price: budget.suggestions[2].salePrice }
+  ];
+
+  if (budget.customSale) {
+    options.push({
+      value: "custom",
+      label: `Venda personalizada • ${formatCurrency(budget.customSale.salePrice)}`,
+      price: budget.customSale.salePrice
+    });
+  }
+
+  return options;
+}
+
+function populateClientsSelect(selectedId = "") {
+  const clients = getClients();
+  budgetClientId.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = clients.length === 0 ? "Cadastre clientes primeiro" : "Selecione um cliente";
+  budgetClientId.appendChild(placeholder);
+
+  clients.forEach((client) => {
+    const option = document.createElement("option");
+    option.value = client.id;
+    option.textContent = `${client.name} • ${client.phone}`;
+    budgetClientId.appendChild(option);
+  });
+
+  budgetClientId.value = selectedId;
+}
+
+function populateProductSelect(selectElement, selectedId = "") {
+  const products = getProducts();
+  selectElement.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = products.length === 0 ? "Cadastre produtos primeiro" : "Selecione um produto";
+  selectElement.appendChild(placeholder);
+
+  products.forEach((product) => {
+    const option = document.createElement("option");
+    option.value = product.id;
+    option.textContent = `${product.name} • ${formatCurrency(product.basePrice)}`;
+    selectElement.appendChild(option);
+  });
+
+  selectElement.value = selectedId;
+}
+
+function populateBudgetSelect(selectElement, selectedId = "") {
+  const budgets = getBudgetHistory();
+  selectElement.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Sem vínculo";
+  selectElement.appendChild(placeholder);
+
+  budgets.forEach((budget) => {
+    const option = document.createElement("option");
+    option.value = budget.id;
+    option.textContent = `${budget.projectName} • ${formatCurrency(budget.suggestions[1].salePrice)}`;
+    selectElement.appendChild(option);
+  });
+
+  selectElement.value = selectedId;
+}
+
+function populateBudgetPriceSelect(selectElement, budgetId, selectedMode = "", fallbackPrice = 0) {
+  selectElement.innerHTML = "";
+  const budget = getBudgetById(budgetId);
+
+  const manualOption = document.createElement("option");
+  manualOption.value = "";
+  manualOption.textContent = budget ? "Escolha uma faixa de preço" : "Sem orçamento vinculado";
+  selectElement.appendChild(manualOption);
+
+  if (budget) {
+    getBudgetPriceOptions(budget).forEach((priceOption) => {
+      const option = document.createElement("option");
+      option.value = priceOption.value;
+      option.textContent = priceOption.label;
+      selectElement.appendChild(option);
+    });
+  }
+
+  selectElement.value = selectedMode;
+
+  if (!budget || !selectedMode) {
+    return fallbackPrice;
+  }
+
+  const selectedOption = getBudgetPriceOptions(budget).find((option) => option.value === selectedMode);
+  return selectedOption ? selectedOption.price : fallbackPrice;
+}
+
 function calculateCosts(values) {
   const hours = parseTimeToHours(values.printTime);
   if (hours === null) {
@@ -224,6 +357,8 @@ function calculateCosts(values) {
   const consumption = Number(values.printerConsumption);
   const energyRate = Number(values.energyRate);
   const extraCosts = Number(values.extraCosts);
+  const customSalePrice = Number(values.customSalePrice) || 0;
+  const client = values.clientId ? getClientById(values.clientId) : null;
 
   const filamentCost = (filamentPrice / 1000) * weight;
   const energyCost = consumption * hours * energyRate;
@@ -234,12 +369,21 @@ function calculateCosts(values) {
     const salePrice = totalCost * multiplier;
     const profit = salePrice - totalCost;
     const margin = salePrice === 0 ? 0 : profit / salePrice;
-
     return { multiplier, salePrice, profit, margin };
   });
 
+  const customSale = customSalePrice > 0
+    ? {
+        salePrice: customSalePrice,
+        profit: customSalePrice - totalCost,
+        margin: customSalePrice === 0 ? 0 : (customSalePrice - totalCost) / customSalePrice
+      }
+    : null;
+
   return {
     id: generateId("budget"),
+    clientId: client ? client.id : null,
+    clientName: client ? client.name : "",
     projectName: values.projectName.trim(),
     weight,
     printTime: values.printTime,
@@ -253,6 +397,7 @@ function calculateCosts(values) {
     depreciation,
     totalCost,
     suggestions,
+    customSale,
     createdAt: new Date().toISOString()
   };
 }
@@ -267,6 +412,7 @@ function renderResult(result) {
   output.heroSale.textContent = formatCurrency(result.suggestions[1].salePrice);
   output.resultProjectName.textContent = result.projectName;
   output.resultTime.textContent = formatHours(result.hours);
+  output.resultClientName.textContent = result.clientName || "Cliente não selecionado";
   output.filamentCost.textContent = formatCurrency(result.filamentCost);
   output.energyCost.textContent = formatCurrency(result.energyCost);
   output.depreciationCost.textContent = formatCurrency(result.depreciation);
@@ -285,28 +431,15 @@ function renderResult(result) {
     `;
     salesGrid.appendChild(card);
   });
-}
 
-function addToBudgetHistory(result) {
-  const currentHistory = getBudgetHistory();
-  const normalizedName = normalizeText(result.projectName);
-  const previousEntry = currentHistory.find((item) => normalizeText(item.projectName) === normalizedName);
-  const history = currentHistory.filter((item) => normalizeText(item.projectName) !== normalizedName);
-
-  const savedEntry = {
-    ...result,
-    id: previousEntry?.id || result.id,
-    createdAt: previousEntry ? previousEntry.createdAt : result.createdAt,
-    updatedAt: new Date().toISOString()
-  };
-
-  history.unshift(savedEntry);
-  const trimmedHistory = history.slice(0, 20);
-  saveBudgetHistory(trimmedHistory);
-  renderBudgetHistory();
-  refreshBudgetOptionsForOrderItems();
-  updateDashboard();
-  return savedEntry;
+  if (result.customSale) {
+    output.customSaleCard.classList.remove("hidden");
+    output.customSaleValue.textContent = formatCurrency(result.customSale.salePrice);
+    output.customSaleProfit.textContent = formatCurrency(result.customSale.profit);
+    output.customSaleMargin.textContent = percentFormatter.format(result.customSale.margin);
+  } else {
+    output.customSaleCard.classList.add("hidden");
+  }
 }
 
 function renderBudgetHistory() {
@@ -326,18 +459,19 @@ function renderBudgetHistory() {
       <div class="history-item-header">
         <div>
           <h3>${item.projectName}</h3>
-          <p class="history-meta">${item.weight} g • ${formatHours(item.hours)}</p>
+          <p class="history-meta">${item.clientName || "Sem cliente"} • ${item.weight} g • ${formatHours(item.hours)}</p>
         </div>
         <time datetime="${item.updatedAt || item.createdAt}">${new Date(item.updatedAt || item.createdAt).toLocaleDateString("pt-BR")}</time>
       </div>
       <div class="history-stats">
         <div><span>Custo</span><strong>${formatCurrency(item.totalCost)}</strong></div>
         <div><span>Venda x3</span><strong>${formatCurrency(item.suggestions[1].salePrice)}</strong></div>
-        <div><span>Lucro x3</span><strong>${formatCurrency(item.suggestions[1].profit)}</strong></div>
+        <div><span>Personalizada</span><strong>${item.customSale ? formatCurrency(item.customSale.salePrice) : "—"}</strong></div>
       </div>
     `;
 
     article.addEventListener("click", () => {
+      populateClientsSelect(item.clientId || "");
       fields.projectName.value = item.projectName;
       fields.weight.value = item.weight;
       fields.printTime.value = item.printTime;
@@ -345,6 +479,7 @@ function renderBudgetHistory() {
       fields.printerConsumption.value = item.consumption;
       fields.energyRate.value = item.energyRate;
       fields.extraCosts.value = item.extraCosts;
+      fields.customSalePrice.value = item.customSale ? item.customSale.salePrice : "";
       renderResult(item);
       activateSection("budgets");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -352,6 +487,110 @@ function renderBudgetHistory() {
 
     historyList.appendChild(article);
   });
+}
+
+function addToBudgetHistory(result) {
+  const currentHistory = getBudgetHistory();
+  const normalizedName = normalizeText(result.projectName);
+  const previousEntry = currentHistory.find((item) => normalizeText(item.projectName) === normalizedName);
+  const history = currentHistory.filter((item) => normalizeText(item.projectName) !== normalizedName);
+
+  const savedEntry = {
+    ...result,
+    id: previousEntry?.id || result.id,
+    createdAt: previousEntry ? previousEntry.createdAt : result.createdAt,
+    updatedAt: new Date().toISOString()
+  };
+
+  history.unshift(savedEntry);
+  saveBudgetHistory(history.slice(0, 20));
+  renderBudgetHistory();
+  refreshBudgetOptionsForOrderItems();
+  updateDashboard();
+  return savedEntry;
+}
+
+function collectClientData() {
+  const name = clientFields.name.value.trim();
+  const phone = clientFields.phone.value.trim();
+
+  if (!name || !phone) {
+    throw new Error("Preencha nome e telefone do cliente.");
+  }
+
+  return {
+    id: editingClientId || generateId("client"),
+    name,
+    phone,
+    notes: clientFields.notes.value.trim(),
+    createdAt: new Date().toISOString()
+  };
+}
+
+function saveClient(clientData) {
+  const existingClients = getClients();
+  const previousClient = existingClients.find((client) => client.id === clientData.id);
+  const nextClients = existingClients.filter((client) => client.id !== clientData.id);
+
+  nextClients.unshift({
+    ...clientData,
+    createdAt: previousClient ? previousClient.createdAt : clientData.createdAt,
+    updatedAt: new Date().toISOString()
+  });
+
+  saveClients(nextClients.slice(0, 100));
+  renderClients();
+  populateClientsSelect();
+  updateDashboard();
+}
+
+function renderClients() {
+  const clients = getClients();
+  clientsList.innerHTML = "";
+
+  if (clients.length === 0) {
+    clientsEmptyState.classList.remove("hidden");
+    updateDashboard();
+    return;
+  }
+
+  clientsEmptyState.classList.add("hidden");
+
+  clients.forEach((client) => {
+    const card = document.createElement("article");
+    card.className = "order-card";
+    card.innerHTML = `
+      <div class="order-card-header">
+        <div>
+          <h4>${client.name}</h4>
+          <div class="order-card-meta">
+            <span>${client.phone}</span>
+            <span>${client.notes || "Sem observação"}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener("click", () => {
+      editingClientId = client.id;
+      clientFields.name.value = client.name;
+      clientFields.phone.value = client.phone;
+      clientFields.notes.value = client.notes || "";
+      saveClientButton.textContent = "Atualizar cliente";
+      activateSection("clients");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    clientsList.appendChild(card);
+  });
+
+  updateDashboard();
+}
+
+function resetClientForm() {
+  editingClientId = null;
+  clientForm.reset();
+  saveClientButton.textContent = "Salvar cliente";
 }
 
 function collectProductData() {
@@ -442,52 +681,6 @@ function resetProductForm() {
   saveProductButton.textContent = "Salvar produto";
 }
 
-function getBudgetById(id) {
-  return getBudgetHistory().find((budget) => budget.id === id) || null;
-}
-
-function getProductById(id) {
-  return getProducts().find((product) => product.id === id) || null;
-}
-
-function populateBudgetSelect(selectElement, selectedId = "") {
-  const budgets = getBudgetHistory();
-  selectElement.innerHTML = "";
-
-  const manualOption = document.createElement("option");
-  manualOption.value = "";
-  manualOption.textContent = "Sem vínculo";
-  selectElement.appendChild(manualOption);
-
-  budgets.forEach((budget) => {
-    const option = document.createElement("option");
-    option.value = budget.id;
-    option.textContent = `${budget.projectName} • ${formatCurrency(budget.suggestions[1].salePrice)}`;
-    selectElement.appendChild(option);
-  });
-
-  selectElement.value = selectedId;
-}
-
-function populateProductSelect(selectElement, selectedId = "") {
-  const products = getProducts();
-  selectElement.innerHTML = "";
-
-  const placeholderOption = document.createElement("option");
-  placeholderOption.value = "";
-  placeholderOption.textContent = products.length === 0 ? "Cadastre produtos primeiro" : "Selecione um produto";
-  selectElement.appendChild(placeholderOption);
-
-  products.forEach((product) => {
-    const option = document.createElement("option");
-    option.value = product.id;
-    option.textContent = `${product.name} • ${formatCurrency(product.basePrice)}`;
-    selectElement.appendChild(option);
-  });
-
-  selectElement.value = selectedId;
-}
-
 function updateOrderItemBudgetNote(row, budgetId) {
   const note = row.querySelector(".budget-link-note");
   const budget = getBudgetById(budgetId);
@@ -497,7 +690,7 @@ function updateOrderItemBudgetNote(row, budgetId) {
     return;
   }
 
-  note.textContent = `Usando o orçamento "${budget.projectName}" com venda sugerida x3 de ${formatCurrency(budget.suggestions[1].salePrice)}.`;
+  note.textContent = `Usando o orçamento "${budget.projectName}" com custo total de ${formatCurrency(budget.totalCost)}.`;
 }
 
 function updateOrderItemSubtotal(row) {
@@ -525,6 +718,10 @@ function createOrderItemElement(item = {}) {
         <p class="budget-link-note">Sem vínculo com orçamento.</p>
       </label>
       <label>
+        <span>Preço do orçamento</span>
+        <select class="order-budget-price-select"></select>
+      </label>
+      <label>
         <span>Quantidade</span>
         <input type="number" class="order-product-quantity" min="1" step="1" value="1" required>
       </label>
@@ -541,14 +738,24 @@ function createOrderItemElement(item = {}) {
 
   const productSelect = row.querySelector(".order-product-select");
   const budgetSelect = row.querySelector(".order-budget-select");
+  const budgetPriceSelect = row.querySelector(".order-budget-price-select");
   const quantityInput = row.querySelector(".order-product-quantity");
   const priceInput = row.querySelector(".order-product-price");
 
   populateProductSelect(productSelect, item.productId || "");
   populateBudgetSelect(budgetSelect, item.linkedBudgetId || "");
-
   quantityInput.value = item.quantity || 1;
   priceInput.value = item.unitPrice ?? 0;
+  const syncedPrice = populateBudgetPriceSelect(
+    budgetPriceSelect,
+    item.linkedBudgetId || "",
+    item.priceMode || "",
+    Number(item.unitPrice ?? 0)
+  );
+  if (item.linkedBudgetId && item.priceMode) {
+    priceInput.value = syncedPrice.toFixed(2);
+  }
+
   updateOrderItemBudgetNote(row, item.linkedBudgetId || "");
   updateOrderItemSubtotal(row);
 
@@ -562,9 +769,9 @@ function createOrderItemElement(item = {}) {
   });
 
   budgetSelect.addEventListener("change", () => {
-    const budget = getBudgetById(budgetSelect.value);
-    if (budget) {
-      priceInput.value = budget.suggestions[1].salePrice.toFixed(2);
+    const synced = populateBudgetPriceSelect(budgetPriceSelect, budgetSelect.value, "", Number(priceInput.value) || 0);
+    if (budgetSelect.value && synced) {
+      priceInput.value = synced.toFixed(2);
     } else {
       const product = getProductById(productSelect.value);
       priceInput.value = product ? product.basePrice.toFixed(2) : "0";
@@ -572,6 +779,19 @@ function createOrderItemElement(item = {}) {
     updateOrderItemBudgetNote(row, budgetSelect.value);
     updateOrderItemSubtotal(row);
     updateOrderSummary();
+  });
+
+  budgetPriceSelect.addEventListener("change", () => {
+    const budget = getBudgetById(budgetSelect.value);
+    if (!budget) {
+      return;
+    }
+    const selectedOption = getBudgetPriceOptions(budget).find((option) => option.value === budgetPriceSelect.value);
+    if (selectedOption) {
+      priceInput.value = selectedOption.price.toFixed(2);
+      updateOrderItemSubtotal(row);
+      updateOrderSummary();
+    }
   });
 
   quantityInput.addEventListener("input", () => {
@@ -602,9 +822,12 @@ function addOrderItem(item = {}) {
 
 function refreshBudgetOptionsForOrderItems() {
   Array.from(orderItemsList.querySelectorAll(".order-budget-select")).forEach((selectElement) => {
+    const row = selectElement.closest(".order-item-row");
     const currentValue = selectElement.value;
     populateBudgetSelect(selectElement, currentValue);
-    updateOrderItemBudgetNote(selectElement.closest(".order-item-row"), selectElement.value);
+    const priceSelect = row.querySelector(".order-budget-price-select");
+    populateBudgetPriceSelect(priceSelect, currentValue, priceSelect.value, Number(row.querySelector(".order-product-price").value) || 0);
+    updateOrderItemBudgetNote(row, currentValue);
   });
 }
 
@@ -619,6 +842,7 @@ function getOrderItemsFromForm() {
   return Array.from(orderItemsList.querySelectorAll(".order-item-row")).map((row) => {
     const productId = row.querySelector(".order-product-select").value || null;
     const linkedBudgetId = row.querySelector(".order-budget-select").value || null;
+    const priceMode = row.querySelector(".order-budget-price-select").value || null;
     const product = productId ? getProductById(productId) : null;
     const linkedBudget = linkedBudgetId ? getBudgetById(linkedBudgetId) : null;
     const quantity = Number(row.querySelector(".order-product-quantity").value) || 0;
@@ -631,7 +855,8 @@ function getOrderItemsFromForm() {
       unitPrice,
       subtotal: quantity * unitPrice,
       linkedBudgetId,
-      linkedBudgetName: linkedBudget ? linkedBudget.projectName : null
+      linkedBudgetName: linkedBudget ? linkedBudget.projectName : null,
+      priceMode
     };
   });
 }
@@ -668,7 +893,6 @@ function collectOrderData() {
     if (!item.productId) {
       throw new Error(`Selecione um produto cadastrado no item ${index + 1}.`);
     }
-
     if (item.quantity <= 0) {
       throw new Error(`Informe uma quantidade válida no item ${index + 1}.`);
     }
@@ -780,6 +1004,7 @@ function resetOrderForm(prefillItems = []) {
 
 function resetBudgetForm() {
   calculatorForm.reset();
+  populateClientsSelect();
   fields.printerConsumption.value = "0.12";
   fields.energyRate.value = "0.80";
   fields.extraCosts.value = "0";
@@ -788,23 +1013,32 @@ function resetBudgetForm() {
   output.heroFilament.textContent = formatCurrency(0);
   output.heroTotal.textContent = formatCurrency(0);
   output.heroSale.textContent = formatCurrency(0);
+  output.customSaleCard.classList.add("hidden");
+  output.resultClientName.textContent = "Cliente não selecionado";
   currentBudgetResult = null;
 }
 
 function updateDashboard() {
+  const clients = getClients();
   const budgets = getBudgetHistory();
   const products = getProducts();
   const orders = getOrders();
   const totalOrdersRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const latestClient = clients[0];
   const latestProduct = products[0];
   const averageProductPrice = products.length === 0
     ? 0
     : products.reduce((sum, product) => sum + Number(product.basePrice || 0), 0) / products.length;
+  const clientsWithPhones = clients.filter((client) => client.phone).length;
 
+  output.dashboardClients.textContent = String(clients.length);
   output.dashboardProjects.textContent = String(budgets.length);
   output.dashboardProducts.textContent = String(products.length);
   output.dashboardOrders.textContent = String(orders.length);
   output.dashboardOrdersRevenue.textContent = formatCurrency(totalOrdersRevenue);
+  output.clientsMetricCount.textContent = String(clients.length);
+  output.clientsMetricLatest.textContent = latestClient ? latestClient.name : "Nenhum";
+  output.clientsMetricPhones.textContent = String(clientsWithPhones);
   output.productsMetricCount.textContent = String(products.length);
   output.productsMetricLatest.textContent = latestProduct ? latestProduct.name : "Nenhum";
   output.productsMetricAverage.textContent = formatCurrency(averageProductPrice);
@@ -881,13 +1115,15 @@ calculatorForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
   const values = {
+    clientId: budgetClientId.value,
     projectName: fields.projectName.value,
     weight: fields.weight.value,
     printTime: fields.printTime.value,
     filamentPrice: fields.filamentPrice.value,
     printerConsumption: fields.printerConsumption.value,
     energyRate: fields.energyRate.value,
-    extraCosts: fields.extraCosts.value
+    extraCosts: fields.extraCosts.value,
+    customSalePrice: fields.customSalePrice.value
   };
 
   try {
@@ -895,6 +1131,18 @@ calculatorForm.addEventListener("submit", (event) => {
     const savedBudget = addToBudgetHistory(result);
     renderResult(savedBudget);
     activateSection("budgets");
+  } catch (error) {
+    window.alert(error.message);
+  }
+});
+
+clientForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  try {
+    const clientData = collectClientData();
+    saveClient(clientData);
+    resetClientForm();
   } catch (error) {
     window.alert(error.message);
   }
@@ -926,6 +1174,7 @@ orderForm.addEventListener("submit", (event) => {
 });
 
 clearFormButton.addEventListener("click", resetBudgetForm);
+clearClientFormButton.addEventListener("click", resetClientForm);
 clearProductFormButton.addEventListener("click", resetProductForm);
 clearOrderFormButton.addEventListener("click", () => resetOrderForm());
 addOrderItemButton.addEventListener("click", () => addOrderItem());
@@ -937,12 +1186,21 @@ clearHistoryButton.addEventListener("click", () => {
   updateDashboard();
 });
 
+clearClientsButton.addEventListener("click", () => {
+  localStorage.removeItem(CLIENT_STORAGE_KEY);
+  renderClients();
+  populateClientsSelect();
+  resetClientForm();
+  updateDashboard();
+});
+
 clearProductsButton.addEventListener("click", () => {
   localStorage.removeItem(PRODUCT_STORAGE_KEY);
   renderProducts();
   refreshProductOptionsForOrderItems();
   resetProductForm();
   resetOrderForm();
+  updateDashboard();
 });
 
 clearOrdersButton.addEventListener("click", () => {
@@ -960,8 +1218,11 @@ createOrderFromBudgetButton.addEventListener("click", () => {
   resetOrderForm([{
     productId: "",
     linkedBudgetId: currentBudgetResult.id,
+    priceMode: currentBudgetResult.customSale ? "custom" : "x3",
     quantity: 1,
-    unitPrice: Number(currentBudgetResult.suggestions[1].salePrice.toFixed(2))
+    unitPrice: currentBudgetResult.customSale
+      ? Number(currentBudgetResult.customSale.salePrice.toFixed(2))
+      : Number(currentBudgetResult.suggestions[1].salePrice.toFixed(2))
   }]);
   activateSection("orders");
 });
@@ -982,13 +1243,16 @@ fields.printTime.addEventListener("blur", () => {
 
 orderFields.orderStatus.addEventListener("change", updateOrderSummary);
 
+populateClientsSelect();
 renderBudgetHistory();
+renderClients();
 renderProducts();
 renderOrders();
 setupNavigation();
 activateSection("dashboard");
 setupInstallPrompt();
 registerServiceWorker();
+resetClientForm();
 resetProductForm();
 resetOrderForm();
 updateDashboard();
