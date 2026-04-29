@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08111f">
   <meta name="description" content="MarinsManager é a central para gerenciar clientes, orçamentos, produtos e pedidos do seu negócio de impressão 3D.">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="assets/icon-192.svg">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
   <link rel="stylesheet" href="style.css">
   <title>MarinsManager</title>
 </head>
@@ -283,7 +284,7 @@
           <article class="panel form-panel">
             <div class="panel-header">
               <h3>Novo orçamento</h3>
-              <p>Preencha os dados do projeto para gerar a precificação.</p>
+              <p>Defina o cliente e calcule cada produto do orçamento com seus próprios custos.</p>
             </div>
 
             <form id="calculatorForm" class="calculator-form">
@@ -299,46 +300,15 @@
                 </label>
               </div>
 
-              <div class="field-grid">
-                <label>
-                  <span>Peso em gramas</span>
-                  <input type="number" id="weight" min="0" step="0.01" placeholder="0,00" required>
-                </label>
-
-                <label>
-                  <span>Tempo de impressão (somente horas e minutos - hh:mm)</span>
-                  <input type="text" id="printTime" inputmode="numeric" maxlength="5" placeholder="03:30" required>
-                </label>
+              <div class="order-items-toolbar">
+                <div>
+                  <h4>Produtos do orçamento</h4>
+                  <p>Cada produto deve ter seu próprio peso, tempo, energia, extras e venda personalizada.</p>
+                </div>
+                <button type="button" id="addBudgetItemButton" class="ghost-button">Adicionar produto</button>
               </div>
 
-              <div class="field-grid">
-                <label>
-                  <span>Preço do kg do filamento</span>
-                  <input type="number" id="filamentPrice" min="0" step="0.01" placeholder="0,00" required>
-                </label>
-
-                <label>
-                  <span>Custos extras</span>
-                  <input type="number" id="extraCosts" min="0" step="0.01" value="0">
-                </label>
-              </div>
-
-              <div class="field-grid">
-                <label>
-                  <span>Consumo da impressora (kWh)</span>
-                  <input type="number" id="printerConsumption" min="0" step="0.01" value="0.12">
-                </label>
-
-                <label>
-                  <span>Tarifa de energia</span>
-                  <input type="number" id="energyRate" min="0" step="0.01" value="0.80">
-                </label>
-              </div>
-
-              <label>
-                <span>Valor de venda personalizado (opcional)</span>
-                <input type="number" id="customSalePrice" min="0" step="0.01" placeholder="0,00">
-              </label>
+              <div id="budgetItemsList" class="order-items-list"></div>
 
               <div class="form-actions">
                 <button type="submit" class="primary-button">Calcular e salvar</button>
@@ -350,7 +320,7 @@
           <article class="panel result-panel">
             <div class="panel-header">
               <h3>Resultado</h3>
-              <p>Resumo completo do custo, da sugestão de venda e do valor personalizado.</p>
+              <p>Resumo consolidado do orçamento e detalhamento por produto.</p>
             </div>
 
             <div id="emptyState" class="empty-state">
@@ -365,21 +335,23 @@
                 <small id="resultClientName">Cliente não selecionado</small>
               </div>
 
+              <div id="budgetResultItemsList" class="helper-list"></div>
+
               <div class="cost-list">
                 <div class="cost-row">
-                  <span>Custo do filamento</span>
+                  <span>Filamento total</span>
                   <strong id="filamentCost">R$ 0,00</strong>
                 </div>
                 <div class="cost-row">
-                  <span>Custo de energia</span>
+                  <span>Energia total</span>
                   <strong id="energyCost">R$ 0,00</strong>
                 </div>
                 <div class="cost-row">
-                  <span>Depreciação</span>
+                  <span>Depreciação total</span>
                   <strong id="depreciationCost">R$ 0,00</strong>
                 </div>
                 <div class="cost-row">
-                  <span>Custos extras</span>
+                  <span>Custos extras totais</span>
                   <strong id="extraCostValue">R$ 0,00</strong>
                 </div>
                 <div class="cost-row total-row">
@@ -390,24 +362,19 @@
 
               <div class="sales-grid" id="salesGrid"></div>
 
-              <div id="customSaleCard" class="custom-sale-card hidden">
-                <div class="summary-row">
-                  <span>Venda personalizada</span>
-                  <strong id="customSaleValue">R$ 0,00</strong>
-                </div>
-                <div class="summary-row">
-                  <span>Resultado</span>
-                  <strong id="customSaleProfit">R$ 0,00</strong>
-                </div>
-                <div class="summary-row">
-                  <span>Margem</span>
-                  <strong id="customSaleMargin">0%</strong>
-                </div>
+              <div id="customSaleCard" class="sale-card custom-sale-card hidden">
+                <span>Venda personalizada</span>
+                <strong id="customSaleValue">R$ 0,00</strong>
+                <div class="sale-meta">Lucro: <span class="profit" id="customSaleProfit">R$ 0,00</span></div>
+                <div class="sale-meta">Margem: <span id="customSaleMargin">0%</span></div>
               </div>
 
               <div class="result-actions">
+                <button type="button" id="approveBudgetButton" class="primary-button">Cliente aceitou este orçamento</button>
                 <button type="button" id="createOrderFromBudgetButton" class="ghost-button">Criar pedido com este orçamento</button>
+                <button type="button" id="downloadBudgetPdfButton" class="ghost-button">Gerar PDF do orçamento</button>
               </div>
+              <p id="budgetApprovalHint" class="approval-hint">Aprove o orçamento para liberá-lo na tela de pedidos.</p>
             </div>
           </article>
         </section>
@@ -558,6 +525,11 @@
             </div>
 
             <form id="orderForm" class="calculator-form order-form">
+              <label>
+                <span>Orçamento aprovado</span>
+                <select id="linkedOrderBudgetId"></select>
+              </label>
+
               <div class="field-grid">
                 <label>
                   <span>Nome do cliente</span>
@@ -584,6 +556,23 @@
                 <label>
                   <span>Observação</span>
                   <input type="text" id="orderNotes" placeholder="Opcional">
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label>
+                  <span>Data para entrega</span>
+                  <input type="date" id="orderDueDate">
+                </label>
+
+                <label>
+                  <span>Nível de urgência</span>
+                  <select id="orderUrgency">
+                    <option value="normal">Normal</option>
+                    <option value="media">Média</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                  </select>
                 </label>
               </div>
 
@@ -621,17 +610,25 @@
                 <strong id="orderItemsCount">0</strong>
               </div>
               <div class="summary-row">
-                <span>Itens vinculados a orçamento</span>
-                <strong id="orderLinkedItemsCount">0</strong>
+                <span>Orçamento vinculado</span>
+                <strong id="orderLinkedBudgetName">Pedido avulso</strong>
               </div>
-              <div class="summary-row">
-                <span>Status atual</span>
-                <strong id="orderCurrentStatus">Novo</strong>
-              </div>
-              <div class="summary-row total-row">
-                <span>Total estimado</span>
-                <strong id="orderSummaryTotal">R$ 0,00</strong>
-              </div>
+                <div class="summary-row">
+                  <span>Status atual</span>
+                  <strong id="orderCurrentStatus">Novo</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Entrega prevista</span>
+                  <strong id="orderCurrentDueDate">Não definida</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Urgência</span>
+                  <strong id="orderCurrentUrgency">Normal</strong>
+                </div>
+                <div class="summary-row total-row">
+                  <span>Total estimado</span>
+                  <strong id="orderSummaryTotal">R$ 0,00</strong>
+                </div>
             </div>
 
             <div class="helper-list">
@@ -679,6 +676,7 @@
     </section>
   </main>
 
+  <script src="assets/jspdf.umd.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

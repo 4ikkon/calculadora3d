@@ -19,6 +19,13 @@ const STATUS_LABELS = {
   entregue: "Entregue"
 };
 
+const URGENCY_LABELS = {
+  normal: "Normal",
+  media: "Média",
+  alta: "Alta",
+  urgente: "Urgente"
+};
+
 const calculatorForm = document.getElementById("calculatorForm");
 const clearFormButton = document.getElementById("clearFormButton");
 const clearHistoryButton = document.getElementById("clearHistoryButton");
@@ -35,6 +42,11 @@ const menuButtons = Array.from(document.querySelectorAll(".menu-button"));
 const appViews = Array.from(document.querySelectorAll(".app-view"));
 const sectionLinks = Array.from(document.querySelectorAll("[data-section-target]"));
 const createOrderFromBudgetButton = document.getElementById("createOrderFromBudgetButton");
+const downloadBudgetPdfButton = document.getElementById("downloadBudgetPdfButton");
+const approveBudgetButton = document.getElementById("approveBudgetButton");
+const budgetApprovalHint = document.getElementById("budgetApprovalHint");
+const addBudgetItemButton = document.getElementById("addBudgetItemButton");
+const budgetItemsList = document.getElementById("budgetItemsList");
 
 const clientForm = document.getElementById("clientForm");
 const clearClientFormButton = document.getElementById("clearClientFormButton");
@@ -59,16 +71,10 @@ const orderItemsList = document.getElementById("orderItemsList");
 const ordersList = document.getElementById("ordersList");
 const ordersEmptyState = document.getElementById("ordersEmptyState");
 const saveOrderButton = document.getElementById("saveOrderButton");
+const linkedOrderBudgetId = document.getElementById("linkedOrderBudgetId");
 
 const fields = {
-  projectName: document.getElementById("projectName"),
-  weight: document.getElementById("weight"),
-  printTime: document.getElementById("printTime"),
-  filamentPrice: document.getElementById("filamentPrice"),
-  printerConsumption: document.getElementById("printerConsumption"),
-  energyRate: document.getElementById("energyRate"),
-  extraCosts: document.getElementById("extraCosts"),
-  customSalePrice: document.getElementById("customSalePrice")
+  projectName: document.getElementById("projectName")
 };
 
 const clientFields = {
@@ -85,9 +91,12 @@ const productFields = {
 };
 
 const orderFields = {
+  linkedBudgetId: document.getElementById("linkedOrderBudgetId"),
   customerName: document.getElementById("customerName"),
   customerPhone: document.getElementById("customerPhone"),
   orderStatus: document.getElementById("orderStatus"),
+  orderDueDate: document.getElementById("orderDueDate"),
+  orderUrgency: document.getElementById("orderUrgency"),
   orderNotes: document.getElementById("orderNotes")
 };
 
@@ -98,6 +107,7 @@ const output = {
   resultProjectName: document.getElementById("resultProjectName"),
   resultTime: document.getElementById("resultTime"),
   resultClientName: document.getElementById("resultClientName"),
+  budgetResultItemsList: document.getElementById("budgetResultItemsList"),
   filamentCost: document.getElementById("filamentCost"),
   energyCost: document.getElementById("energyCost"),
   depreciationCost: document.getElementById("depreciationCost"),
@@ -120,8 +130,10 @@ const output = {
   productsMetricAverage: document.getElementById("productsMetricAverage"),
   orderTotal: document.getElementById("orderTotal"),
   orderItemsCount: document.getElementById("orderItemsCount"),
-  orderLinkedItemsCount: document.getElementById("orderLinkedItemsCount"),
+  orderLinkedBudgetName: document.getElementById("orderLinkedBudgetName"),
   orderCurrentStatus: document.getElementById("orderCurrentStatus"),
+  orderCurrentDueDate: document.getElementById("orderCurrentDueDate"),
+  orderCurrentUrgency: document.getElementById("orderCurrentUrgency"),
   orderSummaryTotal: document.getElementById("orderSummaryTotal"),
   ordersMetricCount: document.getElementById("ordersMetricCount"),
   ordersMetricRevenue: document.getElementById("ordersMetricRevenue"),
@@ -170,6 +182,167 @@ function maskTimeInput(value) {
     return digits;
   }
   return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
+function maskPhoneInput(value) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (digits.length === 0) {
+    return "";
+  }
+
+  if (digits.length < 3) {
+    return `(${digits}`;
+  }
+
+  const ddd = digits.slice(0, 2);
+  const number = digits.slice(2);
+
+  if (number.length <= 4) {
+    return `(${ddd}) ${number}`;
+  }
+
+  if (number.length <= 8) {
+    return `(${ddd}) ${number.slice(0, 4)}-${number.slice(4)}`;
+  }
+
+  return `(${ddd}) ${number.slice(0, 5)}-${number.slice(5)}`;
+}
+
+function isValidPhone(value) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 10 || digits.length === 11;
+}
+
+function formatDateForDisplay(value) {
+  if (!value) {
+    return "Não definida";
+  }
+
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) {
+    return "Não definida";
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+async function fetchAssetAsDataUrl(path) {
+  const response = await fetch(path);
+  const blob = await response.blob();
+
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function ensurePdfPage(doc, cursorY, neededHeight = 14) {
+  if (cursorY + neededHeight <= 280) {
+    return cursorY;
+  }
+
+  doc.addPage();
+  return 20;
+}
+
+async function generateBudgetPdf(budget) {
+  const jsPdfApi = window.jspdf?.jsPDF;
+  if (!jsPdfApi) {
+    throw new Error("A biblioteca de PDF não foi carregada corretamente.");
+  }
+
+  const doc = new jsPdfApi({ unit: "mm", format: "a4" });
+  const logoDataUrl = await fetchAssetAsDataUrl("./assets/logo-pdf.png");
+  let cursorY = 18;
+
+  doc.addImage(logoDataUrl, "PNG", 14, 10, 24, 24);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("Marins Maker", 44, 18);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text("Orçamento de impressão 3D", 44, 24);
+  doc.text(`Emitido em ${new Date().toLocaleDateString("pt-BR")}`, 44, 29);
+
+  cursorY = 42;
+  doc.setDrawColor(210, 220, 235);
+  doc.line(14, cursorY, 196, cursorY);
+  cursorY += 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Dados do orçamento", 14, cursorY);
+  cursorY += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Projeto: ${budget.projectName}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Cliente: ${budget.clientName || "Não informado"}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Status: ${budget.isApproved ? "Aprovado" : "Pendente de aprovação"}`, 14, cursorY);
+  cursorY += 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Produtos calculados", 14, cursorY);
+  cursorY += 8;
+
+  budget.items.forEach((item, index) => {
+    cursorY = ensurePdfPage(doc, cursorY, 48);
+    doc.setFillColor(240, 245, 252);
+    doc.roundedRect(14, cursorY - 5, 182, 37, 3, 3, "F");
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`${index + 1}. ${item.productName}`, 18, cursorY + 1);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.text(`Quantidade: ${item.quantity} | Peso: ${item.weight} g | Tempo: ${item.printTime}`, 18, cursorY + 7);
+    doc.text(`Filamento/kg: ${formatCurrency(item.filamentPrice)} | Consumo: ${item.printerConsumption} kWh | Energia: ${formatCurrency(item.energyRate)}`, 18, cursorY + 13);
+    doc.text(`Custo do filamento: ${formatCurrency(item.filamentCost)} | Energia: ${formatCurrency(item.energyCost)} | Depreciação: ${formatCurrency(item.depreciation)}`, 18, cursorY + 19);
+    doc.text(`Custos extras: ${formatCurrency(item.extraCosts)} | Custo total: ${formatCurrency(item.totalCost)}`, 18, cursorY + 25);
+    doc.text(`Venda x2: ${formatCurrency(item.priceOptions.x2.totalPrice)} | x3: ${formatCurrency(item.priceOptions.x3.totalPrice)} | x4: ${formatCurrency(item.priceOptions.x4.totalPrice)}`, 18, cursorY + 31);
+    if (item.customSale) {
+      doc.text(`Venda personalizada: ${formatCurrency(item.customSale.totalPrice)} | Lucro: ${formatCurrency(item.customSale.profit)} | Margem: ${percentFormatter.format(item.customSale.margin)}`, 18, cursorY + 37);
+      cursorY += 44;
+    } else {
+      cursorY += 38;
+    }
+    doc.setTextColor(0, 0, 0);
+  });
+
+  cursorY = ensurePdfPage(doc, cursorY, 38);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Resumo consolidado", 14, cursorY);
+  cursorY += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Filamento total: ${formatCurrency(budget.filamentCost)}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Energia total: ${formatCurrency(budget.energyCost)}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Depreciação total: ${formatCurrency(budget.depreciation)}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Custos extras totais: ${formatCurrency(budget.extraCosts)}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Custo total do orçamento: ${formatCurrency(budget.totalCost)}`, 14, cursorY);
+  cursorY += 8;
+  doc.text(`Venda sugerida x2: ${formatCurrency(budget.suggestions[0].salePrice)}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Venda sugerida x3: ${formatCurrency(budget.suggestions[1].salePrice)}`, 14, cursorY);
+  cursorY += 6;
+  doc.text(`Venda sugerida x4: ${formatCurrency(budget.suggestions[2].salePrice)}`, 14, cursorY);
+  if (budget.customSale) {
+    cursorY += 6;
+    doc.text(`Venda personalizada total: ${formatCurrency(budget.customSale.salePrice)} | Lucro: ${formatCurrency(budget.customSale.profit)} | Margem: ${percentFormatter.format(budget.customSale.margin)}`, 14, cursorY);
+  }
+
+  const safeProjectName = budget.projectName.replace(/[\\/:*?"<>|]/g, "-");
+  doc.save(`orcamento-${safeProjectName}.pdf`);
 }
 
 function parseTimeToHours(value) {
@@ -239,6 +412,22 @@ function getProductById(id) {
   return getProducts().find((product) => product.id === id) || null;
 }
 
+function syncOrderCustomerFromBudget(budgetId, force = false) {
+  const budget = getBudgetById(budgetId);
+  if (!budget || !budget.clientName) {
+    return;
+  }
+
+  if (force || !orderFields.customerName.value.trim()) {
+    orderFields.customerName.value = budget.clientName;
+  }
+
+  const client = budget.clientId ? getClientById(budget.clientId) : null;
+  if (client && (force || !orderFields.customerPhone.value.trim())) {
+    orderFields.customerPhone.value = client.phone;
+  }
+}
+
 function getBudgetPriceOptions(budget) {
   if (!budget) {
     return [];
@@ -259,6 +448,50 @@ function getBudgetPriceOptions(budget) {
   }
 
   return options;
+}
+
+function getBudgetItemPriceOptionMap(item) {
+  return item?.priceOptions || {};
+}
+
+function getBudgetItemUnitPrice(item, mode) {
+  if (!item || !mode) {
+    return 0;
+  }
+
+  return Number(getBudgetItemPriceOptionMap(item)[mode]?.unitPrice || 0);
+}
+
+function getBudgetItemPriceSelectOptions(item) {
+  const priceOptions = getBudgetItemPriceOptionMap(item);
+  const orderedModes = ["x2", "x3", "x4", "custom"];
+
+  return orderedModes
+    .filter((mode) => priceOptions[mode])
+    .map((mode) => ({
+      value: mode,
+      label: `${priceOptions[mode].label} • ${formatCurrency(priceOptions[mode].unitPrice)}`
+    }));
+}
+
+function getApprovedBudgets() {
+  return getBudgetHistory().filter((budget) => budget.isApproved);
+}
+
+function findBudgetItemById(budget, itemId) {
+  return budget?.items?.find((item) => item.id === itemId) || null;
+}
+
+function findBudgetItemByProductId(budget, productId) {
+  return budget?.items?.find((item) => item.productId === productId) || null;
+}
+
+function formatBudgetStatusLabel(isApproved) {
+  return isApproved ? "Aprovado" : "Pendente";
+}
+
+function formatBudgetStatusClass(isApproved) {
+  return isApproved ? "status-entregue" : "status-aguardando";
 }
 
 function populateClientsSelect(selectedId = "") {
@@ -299,36 +532,37 @@ function populateProductSelect(selectElement, selectedId = "") {
   selectElement.value = selectedId;
 }
 
-function populateBudgetSelect(selectElement, selectedId = "") {
-  const budgets = getBudgetHistory();
-  selectElement.innerHTML = "";
+function populateOrderBudgetSelect(selectedId = "") {
+  const budgets = getApprovedBudgets();
+  linkedOrderBudgetId.innerHTML = "";
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "Sem vínculo";
-  selectElement.appendChild(placeholder);
+  placeholder.textContent = budgets.length === 0 ? "Nenhum orçamento aprovado disponível" : "Pedido avulso (sem orçamento)";
+  linkedOrderBudgetId.appendChild(placeholder);
 
   budgets.forEach((budget) => {
     const option = document.createElement("option");
     option.value = budget.id;
-    option.textContent = `${budget.projectName} • ${formatCurrency(budget.suggestions[1].salePrice)}`;
-    selectElement.appendChild(option);
+    option.textContent = `${budget.projectName} • ${budget.clientName || "Sem cliente"} • ${formatCurrency(budget.suggestions[1].salePrice)}`;
+    linkedOrderBudgetId.appendChild(option);
   });
 
-  selectElement.value = selectedId;
+  linkedOrderBudgetId.value = selectedId;
 }
 
-function populateBudgetPriceSelect(selectElement, budgetId, selectedMode = "", fallbackPrice = 0) {
+function populateOrderItemPriceSelect(selectElement, budgetId, budgetItemId, selectedMode = "", fallbackPrice = 0) {
   selectElement.innerHTML = "";
-  const budget = getBudgetById(budgetId);
+  const budget = budgetId ? getBudgetById(budgetId) : null;
+  const budgetItem = budget ? findBudgetItemById(budget, budgetItemId) : null;
 
   const manualOption = document.createElement("option");
   manualOption.value = "";
-  manualOption.textContent = budget ? "Escolha uma faixa de preço" : "Sem orçamento vinculado";
+  manualOption.textContent = budgetItem ? "Preço manual ou do produto" : "Sem preço do orçamento";
   selectElement.appendChild(manualOption);
 
-  if (budget) {
-    getBudgetPriceOptions(budget).forEach((priceOption) => {
+  if (budgetItem) {
+    getBudgetItemPriceSelectOptions(budgetItem).forEach((priceOption) => {
       const option = document.createElement("option");
       option.value = priceOption.value;
       option.textContent = priceOption.label;
@@ -338,27 +572,35 @@ function populateBudgetPriceSelect(selectElement, budgetId, selectedMode = "", f
 
   selectElement.value = selectedMode;
 
-  if (!budget || !selectedMode) {
+  if (!budgetItem || !selectedMode) {
     return fallbackPrice;
   }
 
-  const selectedOption = getBudgetPriceOptions(budget).find((option) => option.value === selectedMode);
-  return selectedOption ? selectedOption.price : fallbackPrice;
+  return getBudgetItemUnitPrice(budgetItem, selectedMode) || fallbackPrice;
 }
 
-function calculateCosts(values) {
-  const hours = parseTimeToHours(values.printTime);
-  if (hours === null) {
-    throw new Error("Informe o tempo de impressão no formato hh:mm, usando somente horas e minutos.");
+function calculateBudgetItem(item, index) {
+  const product = item.productId ? getProductById(item.productId) : null;
+  if (!product) {
+    throw new Error(`Selecione um produto cadastrado no item ${index + 1} do orçamento.`);
   }
 
-  const weight = Number(values.weight);
-  const filamentPrice = Number(values.filamentPrice);
-  const consumption = Number(values.printerConsumption);
-  const energyRate = Number(values.energyRate);
-  const extraCosts = Number(values.extraCosts);
-  const customSalePrice = Number(values.customSalePrice) || 0;
-  const client = values.clientId ? getClientById(values.clientId) : null;
+  const quantity = Number(item.quantity) || 0;
+  if (quantity <= 0) {
+    throw new Error(`Informe uma quantidade válida no item ${index + 1} do orçamento.`);
+  }
+
+  const hours = parseTimeToHours(item.printTime || "");
+  if (hours === null) {
+    throw new Error(`Informe o tempo de impressão do item ${index + 1} no formato hh:mm.`);
+  }
+
+  const weight = Number(item.weight) || 0;
+  const filamentPrice = Number(item.filamentPrice) || 0;
+  const consumption = Number(item.printerConsumption) || 0;
+  const energyRate = Number(item.energyRate) || 0;
+  const extraCosts = Number(item.extraCosts) || 0;
+  const customSalePrice = Number(item.customSalePrice) || 0;
 
   const filamentCost = (filamentPrice / 1000) * weight;
   const energyCost = consumption * hours * energyRate;
@@ -366,30 +608,63 @@ function calculateCosts(values) {
   const totalCost = filamentCost + energyCost + depreciation + extraCosts;
 
   const suggestions = [2, 3, 4].map((multiplier) => {
-    const salePrice = totalCost * multiplier;
-    const profit = salePrice - totalCost;
-    const margin = salePrice === 0 ? 0 : profit / salePrice;
-    return { multiplier, salePrice, profit, margin };
+    const totalPrice = totalCost * multiplier;
+    const profit = totalPrice - totalCost;
+    const margin = totalPrice === 0 ? 0 : profit / totalPrice;
+    return {
+      multiplier,
+      totalPrice,
+      unitPrice: quantity > 0 ? totalPrice / quantity : 0,
+      profit,
+      margin
+    };
   });
 
   const customSale = customSalePrice > 0
     ? {
-        salePrice: customSalePrice,
+        totalPrice: customSalePrice,
+        unitPrice: quantity > 0 ? customSalePrice / quantity : 0,
         profit: customSalePrice - totalCost,
         margin: customSalePrice === 0 ? 0 : (customSalePrice - totalCost) / customSalePrice
       }
     : null;
 
+  const priceOptions = {
+    x2: {
+      label: "Venda x2",
+      totalPrice: suggestions[0].totalPrice,
+      unitPrice: suggestions[0].unitPrice
+    },
+    x3: {
+      label: "Venda x3",
+      totalPrice: suggestions[1].totalPrice,
+      unitPrice: suggestions[1].unitPrice
+    },
+    x4: {
+      label: "Venda x4",
+      totalPrice: suggestions[2].totalPrice,
+      unitPrice: suggestions[2].unitPrice
+    }
+  };
+
+  if (customSale) {
+    priceOptions.custom = {
+      label: "Venda personalizada",
+      totalPrice: customSale.totalPrice,
+      unitPrice: customSale.unitPrice
+    };
+  }
+
   return {
-    id: generateId("budget"),
-    clientId: client ? client.id : null,
-    clientName: client ? client.name : "",
-    projectName: values.projectName.trim(),
+    id: item.id || generateId("budget-item"),
+    productId: product.id,
+    productName: product.name,
+    quantity,
     weight,
-    printTime: values.printTime,
+    printTime: item.printTime,
     hours,
     filamentPrice,
-    consumption,
+    printerConsumption: consumption,
     energyRate,
     extraCosts,
     filamentCost,
@@ -398,6 +673,71 @@ function calculateCosts(values) {
     totalCost,
     suggestions,
     customSale,
+    priceOptions
+  };
+}
+
+function calculateCosts(values) {
+  const client = values.clientId ? getClientById(values.clientId) : null;
+  const items = (values.items || []).map((item, index) => calculateBudgetItem(item, index));
+
+  if (items.length === 0) {
+    throw new Error("Adicione pelo menos um produto ao orçamento.");
+  }
+
+  const totals = items.reduce((accumulator, item) => {
+    accumulator.filamentCost += item.filamentCost;
+    accumulator.energyCost += item.energyCost;
+    accumulator.depreciation += item.depreciation;
+    accumulator.extraCosts += item.extraCosts;
+    accumulator.totalCost += item.totalCost;
+    accumulator.hours += item.hours;
+    return accumulator;
+  }, {
+    filamentCost: 0,
+    energyCost: 0,
+    depreciation: 0,
+    extraCosts: 0,
+    totalCost: 0,
+    hours: 0
+  });
+
+  const suggestions = [2, 3, 4].map((multiplier) => {
+    const salePrice = items.reduce((sum, item) => {
+      const suggestion = item.suggestions.find((entry) => entry.multiplier === multiplier);
+      return sum + (suggestion ? suggestion.totalPrice : 0);
+    }, 0);
+    const profit = salePrice - totals.totalCost;
+    const margin = salePrice === 0 ? 0 : profit / salePrice;
+    return { multiplier, salePrice, profit, margin };
+  });
+
+  const hasCustomSale = items.some((item) => item.customSale);
+  const customSaleTotal = items.reduce((sum, item) => sum + (item.customSale ? item.customSale.totalPrice : 0), 0);
+  const customSale = hasCustomSale
+    ? {
+        salePrice: customSaleTotal,
+        profit: customSaleTotal - totals.totalCost,
+        margin: customSaleTotal === 0 ? 0 : (customSaleTotal - totals.totalCost) / customSaleTotal
+      }
+    : null;
+
+  return {
+    id: generateId("budget"),
+    clientId: client ? client.id : null,
+    clientName: client ? client.name : "",
+    projectName: values.projectName.trim(),
+    printTime: items.length === 1 ? items[0].printTime : "",
+    hours: totals.hours,
+    filamentCost: totals.filamentCost,
+    energyCost: totals.energyCost,
+    depreciation: totals.depreciation,
+    extraCosts: totals.extraCosts,
+    totalCost: totals.totalCost,
+    suggestions,
+    customSale,
+    items,
+    isApproved: false,
     createdAt: new Date().toISOString()
   };
 }
@@ -413,11 +753,23 @@ function renderResult(result) {
   output.resultProjectName.textContent = result.projectName;
   output.resultTime.textContent = formatHours(result.hours);
   output.resultClientName.textContent = result.clientName || "Cliente não selecionado";
+  output.budgetResultItemsList.innerHTML = "";
   output.filamentCost.textContent = formatCurrency(result.filamentCost);
   output.energyCost.textContent = formatCurrency(result.energyCost);
   output.depreciationCost.textContent = formatCurrency(result.depreciation);
   output.extraCostValue.textContent = formatCurrency(result.extraCosts);
   output.totalCost.textContent = formatCurrency(result.totalCost);
+
+  result.items.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "helper-item";
+    card.innerHTML = `
+      <strong>${item.productName}</strong>
+      <p>${item.quantity} unidade(s) • ${item.weight} g • ${formatHours(item.hours)}</p>
+      <p>Custo: ${formatCurrency(item.totalCost)} • Venda x3: ${formatCurrency(item.priceOptions.x3.totalPrice)}</p>
+    `;
+    output.budgetResultItemsList.appendChild(card);
+  });
 
   salesGrid.innerHTML = "";
   result.suggestions.forEach((suggestion) => {
@@ -440,6 +792,14 @@ function renderResult(result) {
   } else {
     output.customSaleCard.classList.add("hidden");
   }
+
+  approveBudgetButton.textContent = result.isApproved
+    ? "Orçamento aprovado pelo cliente"
+    : "Cliente aceitou este orçamento";
+  budgetApprovalHint.textContent = result.isApproved
+    ? "Esse orçamento já está liberado para aparecer na tela de pedidos."
+    : "Aprove o orçamento para liberá-lo na tela de pedidos.";
+  createOrderFromBudgetButton.classList.toggle("hidden", !result.isApproved);
 }
 
 function renderBudgetHistory() {
@@ -459,8 +819,9 @@ function renderBudgetHistory() {
       <div class="history-item-header">
         <div>
           <h3>${item.projectName}</h3>
-          <p class="history-meta">${item.clientName || "Sem cliente"} • ${item.weight} g • ${formatHours(item.hours)}</p>
+          <p class="history-meta">${item.clientName || "Sem cliente"} • ${item.items?.length || 0} produto(s) • ${formatHours(item.hours)}</p>
         </div>
+        <span class="status-badge ${formatBudgetStatusClass(item.isApproved)}">${formatBudgetStatusLabel(item.isApproved)}</span>
         <time datetime="${item.updatedAt || item.createdAt}">${new Date(item.updatedAt || item.createdAt).toLocaleDateString("pt-BR")}</time>
       </div>
       <div class="history-stats">
@@ -473,13 +834,7 @@ function renderBudgetHistory() {
     article.addEventListener("click", () => {
       populateClientsSelect(item.clientId || "");
       fields.projectName.value = item.projectName;
-      fields.weight.value = item.weight;
-      fields.printTime.value = item.printTime;
-      fields.filamentPrice.value = item.filamentPrice;
-      fields.printerConsumption.value = item.consumption;
-      fields.energyRate.value = item.energyRate;
-      fields.extraCosts.value = item.extraCosts;
-      fields.customSalePrice.value = item.customSale ? item.customSale.salePrice : "";
+      loadBudgetItemsIntoForm(item.items || []);
       renderResult(item);
       activateSection("budgets");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -498,6 +853,7 @@ function addToBudgetHistory(result) {
   const savedEntry = {
     ...result,
     id: previousEntry?.id || result.id,
+    isApproved: previousEntry?.isApproved || false,
     createdAt: previousEntry ? previousEntry.createdAt : result.createdAt,
     updatedAt: new Date().toISOString()
   };
@@ -505,7 +861,7 @@ function addToBudgetHistory(result) {
   history.unshift(savedEntry);
   saveBudgetHistory(history.slice(0, 20));
   renderBudgetHistory();
-  refreshBudgetOptionsForOrderItems();
+  populateOrderBudgetSelect(orderFields.linkedBudgetId.value);
   updateDashboard();
   return savedEntry;
 }
@@ -516,6 +872,10 @@ function collectClientData() {
 
   if (!name || !phone) {
     throw new Error("Preencha nome e telefone do cliente.");
+  }
+
+  if (!isValidPhone(phone)) {
+    throw new Error("Informe um telefone com DDD e 8 ou 9 dígitos.");
   }
 
   return {
@@ -681,16 +1041,146 @@ function resetProductForm() {
   saveProductButton.textContent = "Salvar produto";
 }
 
-function updateOrderItemBudgetNote(row, budgetId) {
-  const note = row.querySelector(".budget-link-note");
-  const budget = getBudgetById(budgetId);
+function createBudgetItemElement(item = {}) {
+  const row = document.createElement("article");
+  row.className = "order-item-row";
+  row.dataset.itemId = item.id || "";
+  row.innerHTML = `
+    <div class="order-item-header">
+      <h4>Produto do orçamento</h4>
+      <button type="button" class="ghost-button remove-budget-item-button">Remover</button>
+    </div>
+    <div class="order-item-grid">
+      <label>
+        <span>Produto cadastrado</span>
+        <select class="budget-product-select"></select>
+      </label>
+      <label>
+        <span>Quantidade</span>
+        <input type="number" class="budget-product-quantity" min="1" step="1" value="1" required>
+      </label>
+      <label>
+        <span>Peso em gramas</span>
+        <input type="number" class="budget-product-weight" min="0" step="0.01" placeholder="0,00" required>
+      </label>
+      <label>
+        <span>Tempo de impressão (somente horas e minutos - hh:mm)</span>
+        <input type="text" class="budget-product-time" inputmode="numeric" maxlength="5" placeholder="03:30" required>
+      </label>
+      <label>
+        <span>Preço do kg do filamento</span>
+        <input type="number" class="budget-product-filament-price" min="0" step="0.01" placeholder="0,00" required>
+      </label>
+      <label>
+        <span>Custos extras</span>
+        <input type="number" class="budget-product-extra-costs" min="0" step="0.01" value="0">
+      </label>
+      <label>
+        <span>Consumo da impressora (kWh)</span>
+        <input type="number" class="budget-product-consumption" min="0" step="0.01" value="0.12">
+      </label>
+      <label>
+        <span>Tarifa de energia</span>
+        <input type="number" class="budget-product-energy-rate" min="0" step="0.01" value="0.80">
+      </label>
+      <label>
+        <span>Venda personalizada do produto (opcional)</span>
+        <input type="number" class="budget-product-custom-sale" min="0" step="0.01" placeholder="0,00">
+      </label>
+    </div>
+  `;
 
-  if (!budget) {
-    note.textContent = "Sem vínculo com orçamento.";
+  const productSelect = row.querySelector(".budget-product-select");
+  const quantityInput = row.querySelector(".budget-product-quantity");
+  const weightInput = row.querySelector(".budget-product-weight");
+  const timeInput = row.querySelector(".budget-product-time");
+  const filamentPriceInput = row.querySelector(".budget-product-filament-price");
+  const extraCostsInput = row.querySelector(".budget-product-extra-costs");
+  const consumptionInput = row.querySelector(".budget-product-consumption");
+  const energyRateInput = row.querySelector(".budget-product-energy-rate");
+  const customSaleInput = row.querySelector(".budget-product-custom-sale");
+  populateProductSelect(productSelect, item.productId || "");
+  quantityInput.value = item.quantity || 1;
+  weightInput.value = item.weight ?? "";
+  timeInput.value = item.printTime || "";
+  filamentPriceInput.value = item.filamentPrice ?? "";
+  extraCostsInput.value = item.extraCosts ?? 0;
+  consumptionInput.value = item.printerConsumption ?? 0.12;
+  energyRateInput.value = item.energyRate ?? 0.80;
+  customSaleInput.value = item.customSale?.totalPrice ?? item.customSalePrice ?? "";
+
+  timeInput.addEventListener("input", () => {
+    timeInput.value = maskTimeInput(timeInput.value);
+  });
+
+  timeInput.addEventListener("blur", () => {
+    const hours = parseTimeToHours(timeInput.value);
+    if (hours !== null) {
+      const totalMinutes = Math.round(hours * 60);
+      const wholeHours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      timeInput.value = `${String(wholeHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    }
+  });
+
+  row.querySelector(".remove-budget-item-button").addEventListener("click", () => {
+    row.remove();
+    if (budgetItemsList.children.length === 0) {
+      addBudgetItem();
+    }
+  });
+
+  return row;
+}
+
+function addBudgetItem(item = {}) {
+  budgetItemsList.appendChild(createBudgetItemElement(item));
+}
+
+function loadBudgetItemsIntoForm(items = []) {
+  budgetItemsList.innerHTML = "";
+  if (items.length > 0) {
+    items.forEach((item) => addBudgetItem(item));
     return;
   }
+  addBudgetItem();
+}
 
-  note.textContent = `Usando o orçamento "${budget.projectName}" com custo total de ${formatCurrency(budget.totalCost)}.`;
+function refreshProductOptionsForBudgetItems() {
+  Array.from(budgetItemsList.querySelectorAll(".budget-product-select")).forEach((selectElement) => {
+    populateProductSelect(selectElement, selectElement.value);
+  });
+}
+
+function getBudgetItemsFromForm() {
+  return Array.from(budgetItemsList.querySelectorAll(".order-item-row"))
+    .map((row) => {
+      const productId = row.querySelector(".budget-product-select").value || null;
+      const quantity = Number(row.querySelector(".budget-product-quantity").value) || 0;
+      const weight = Number(row.querySelector(".budget-product-weight").value) || 0;
+      const printTime = row.querySelector(".budget-product-time").value.trim();
+      const filamentPrice = Number(row.querySelector(".budget-product-filament-price").value) || 0;
+      const extraCosts = Number(row.querySelector(".budget-product-extra-costs").value) || 0;
+      const printerConsumption = Number(row.querySelector(".budget-product-consumption").value) || 0.12;
+      const energyRate = Number(row.querySelector(".budget-product-energy-rate").value) || 0.80;
+      const customSalePrice = Number(row.querySelector(".budget-product-custom-sale").value) || 0;
+      const product = productId ? getProductById(productId) : null;
+
+      return {
+        id: row.dataset.itemId || generateId("budget-item"),
+        productId,
+        productName: product ? product.name : "",
+        quantity,
+        weight,
+        printTime,
+        filamentPrice,
+        extraCosts,
+        printerConsumption,
+        energyRate,
+        customSalePrice
+      };
+    })
+    .filter((item) => item.productId);
 }
 
 function updateOrderItemSubtotal(row) {
@@ -699,9 +1189,57 @@ function updateOrderItemSubtotal(row) {
   row.querySelector(".order-item-subtotal").textContent = formatCurrency(quantity * unitPrice);
 }
 
+function updateOrderItemBudgetNote(row, budgetId, budgetItemId) {
+  const note = row.querySelector(".budget-link-note");
+  const budget = budgetId ? getBudgetById(budgetId) : null;
+  const budgetItem = budget ? findBudgetItemById(budget, budgetItemId) : null;
+
+  if (!budget) {
+    note.textContent = "Pedido avulso, sem orçamento vinculado.";
+    return;
+  }
+
+  if (!budgetItem) {
+    note.textContent = `Orçamento "${budget.projectName}" vinculado, mas este item está livre para ajuste manual.`;
+    return;
+  }
+
+  note.textContent = `Produto vindo do orçamento "${budget.projectName}" com ${budgetItem.quantity} unidade(s) previstas.`;
+}
+
+function syncOrderItemPricing(row) {
+  const productSelect = row.querySelector(".order-product-select");
+  const priceSelect = row.querySelector(".order-budget-price-select");
+  const priceInput = row.querySelector(".order-product-price");
+  const budgetId = orderFields.linkedBudgetId.value;
+  const budget = budgetId ? getBudgetById(budgetId) : null;
+  const matchedBudgetItem = budget ? findBudgetItemByProductId(budget, productSelect.value) : null;
+
+  row.dataset.budgetItemId = matchedBudgetItem?.id || "";
+
+  const syncedPrice = populateOrderItemPriceSelect(
+    priceSelect,
+    budgetId,
+    row.dataset.budgetItemId,
+    priceSelect.value,
+    Number(priceInput.value) || 0
+  );
+
+  if (priceSelect.value && syncedPrice) {
+    priceInput.value = syncedPrice.toFixed(2);
+  } else {
+    const product = getProductById(productSelect.value);
+    priceInput.value = product ? Number(product.basePrice || 0).toFixed(2) : "0";
+  }
+
+  updateOrderItemBudgetNote(row, budgetId, row.dataset.budgetItemId);
+  updateOrderItemSubtotal(row);
+}
+
 function createOrderItemElement(item = {}) {
   const row = document.createElement("article");
   row.className = "order-item-row";
+  row.dataset.budgetItemId = item.budgetItemId || "";
   row.innerHTML = `
     <div class="order-item-header">
       <h4>Item do pedido</h4>
@@ -711,14 +1249,10 @@ function createOrderItemElement(item = {}) {
       <label>
         <span>Produto cadastrado</span>
         <select class="order-product-select"></select>
+        <p class="budget-link-note">Pedido avulso, sem orçamento vinculado.</p>
       </label>
       <label>
-        <span>Orçamento vinculado</span>
-        <select class="order-budget-select"></select>
-        <p class="budget-link-note">Sem vínculo com orçamento.</p>
-      </label>
-      <label>
-        <span>Preço do orçamento</span>
+        <span>Preço sugerido</span>
         <select class="order-budget-price-select"></select>
       </label>
       <label>
@@ -737,61 +1271,43 @@ function createOrderItemElement(item = {}) {
   `;
 
   const productSelect = row.querySelector(".order-product-select");
-  const budgetSelect = row.querySelector(".order-budget-select");
   const budgetPriceSelect = row.querySelector(".order-budget-price-select");
   const quantityInput = row.querySelector(".order-product-quantity");
   const priceInput = row.querySelector(".order-product-price");
 
   populateProductSelect(productSelect, item.productId || "");
-  populateBudgetSelect(budgetSelect, item.linkedBudgetId || "");
   quantityInput.value = item.quantity || 1;
   priceInput.value = item.unitPrice ?? 0;
-  const syncedPrice = populateBudgetPriceSelect(
-    budgetPriceSelect,
-    item.linkedBudgetId || "",
-    item.priceMode || "",
-    Number(item.unitPrice ?? 0)
-  );
-  if (item.linkedBudgetId && item.priceMode) {
-    priceInput.value = syncedPrice.toFixed(2);
+  budgetPriceSelect.value = item.priceMode || "";
+
+  syncOrderItemPricing(row);
+
+  if (item.priceMode && Number(item.unitPrice ?? 0) > 0) {
+    priceInput.value = Number(item.unitPrice).toFixed(2);
+    budgetPriceSelect.value = item.priceMode;
+    updateOrderItemSubtotal(row);
+  } else if (item.unitPrice !== undefined && item.unitPrice !== null) {
+    priceInput.value = Number(item.unitPrice).toFixed(2);
+    updateOrderItemSubtotal(row);
   }
 
-  updateOrderItemBudgetNote(row, item.linkedBudgetId || "");
-  updateOrderItemSubtotal(row);
-
   productSelect.addEventListener("change", () => {
-    const product = getProductById(productSelect.value);
-    if (product && !budgetSelect.value) {
-      priceInput.value = product.basePrice.toFixed(2);
-    }
-    updateOrderItemSubtotal(row);
-    updateOrderSummary();
-  });
-
-  budgetSelect.addEventListener("change", () => {
-    const synced = populateBudgetPriceSelect(budgetPriceSelect, budgetSelect.value, "", Number(priceInput.value) || 0);
-    if (budgetSelect.value && synced) {
-      priceInput.value = synced.toFixed(2);
-    } else {
-      const product = getProductById(productSelect.value);
-      priceInput.value = product ? product.basePrice.toFixed(2) : "0";
-    }
-    updateOrderItemBudgetNote(row, budgetSelect.value);
-    updateOrderItemSubtotal(row);
+    syncOrderItemPricing(row);
     updateOrderSummary();
   });
 
   budgetPriceSelect.addEventListener("change", () => {
-    const budget = getBudgetById(budgetSelect.value);
-    if (!budget) {
-      return;
+    const budgetId = orderFields.linkedBudgetId.value;
+    const budget = budgetId ? getBudgetById(budgetId) : null;
+    const budgetItem = budget ? findBudgetItemById(budget, row.dataset.budgetItemId) : null;
+    const selectedPrice = getBudgetItemUnitPrice(budgetItem, budgetPriceSelect.value);
+
+    if (selectedPrice) {
+      priceInput.value = selectedPrice.toFixed(2);
     }
-    const selectedOption = getBudgetPriceOptions(budget).find((option) => option.value === budgetPriceSelect.value);
-    if (selectedOption) {
-      priceInput.value = selectedOption.price.toFixed(2);
-      updateOrderItemSubtotal(row);
-      updateOrderSummary();
-    }
+
+    updateOrderItemSubtotal(row);
+    updateOrderSummary();
   });
 
   quantityInput.addEventListener("input", () => {
@@ -820,31 +1336,61 @@ function addOrderItem(item = {}) {
   updateOrderSummary();
 }
 
-function refreshBudgetOptionsForOrderItems() {
-  Array.from(orderItemsList.querySelectorAll(".order-budget-select")).forEach((selectElement) => {
-    const row = selectElement.closest(".order-item-row");
-    const currentValue = selectElement.value;
-    populateBudgetSelect(selectElement, currentValue);
-    const priceSelect = row.querySelector(".order-budget-price-select");
-    populateBudgetPriceSelect(priceSelect, currentValue, priceSelect.value, Number(row.querySelector(".order-product-price").value) || 0);
-    updateOrderItemBudgetNote(row, currentValue);
+function buildOrderItemsFromBudget(budget) {
+  return (budget.items || []).map((item) => ({
+    productId: item.productId,
+    productName: item.productName,
+    budgetItemId: item.id,
+    priceMode: item.priceOptions?.custom ? "custom" : "x3",
+    quantity: item.quantity,
+    unitPrice: item.priceOptions?.custom
+      ? Number(item.priceOptions.custom.unitPrice.toFixed(2))
+      : Number((item.priceOptions?.x3?.unitPrice || item.productBasePrice || 0).toFixed(2))
+  }));
+}
+
+function loadApprovedBudgetIntoOrder(budgetId) {
+  const budget = budgetId ? getBudgetById(budgetId) : null;
+  orderItemsList.innerHTML = "";
+
+  if (!budget) {
+    orderFields.customerName.value = "";
+    orderFields.customerPhone.value = "";
+    addOrderItem();
+    updateOrderSummary();
+    return;
+  }
+
+  syncOrderCustomerFromBudget(budgetId, true);
+  const items = buildOrderItemsFromBudget(budget);
+  if (items.length > 0) {
+    items.forEach((item) => addOrderItem(item));
+  } else {
+    addOrderItem();
+  }
+
+  updateOrderSummary();
+}
+
+function refreshOrderItemsFromCurrentBudget() {
+  Array.from(orderItemsList.querySelectorAll(".order-item-row")).forEach((row) => {
+    syncOrderItemPricing(row);
   });
+  updateOrderSummary();
 }
 
 function refreshProductOptionsForOrderItems() {
   Array.from(orderItemsList.querySelectorAll(".order-product-select")).forEach((selectElement) => {
-    const currentValue = selectElement.value;
-    populateProductSelect(selectElement, currentValue);
+    populateProductSelect(selectElement, selectElement.value);
   });
+  refreshProductOptionsForBudgetItems();
 }
 
 function getOrderItemsFromForm() {
   return Array.from(orderItemsList.querySelectorAll(".order-item-row")).map((row) => {
     const productId = row.querySelector(".order-product-select").value || null;
-    const linkedBudgetId = row.querySelector(".order-budget-select").value || null;
     const priceMode = row.querySelector(".order-budget-price-select").value || null;
     const product = productId ? getProductById(productId) : null;
-    const linkedBudget = linkedBudgetId ? getBudgetById(linkedBudgetId) : null;
     const quantity = Number(row.querySelector(".order-product-quantity").value) || 0;
     const unitPrice = Number(row.querySelector(".order-product-price").value) || 0;
 
@@ -854,8 +1400,7 @@ function getOrderItemsFromForm() {
       quantity,
       unitPrice,
       subtotal: quantity * unitPrice,
-      linkedBudgetId,
-      linkedBudgetName: linkedBudget ? linkedBudget.projectName : null,
+      budgetItemId: row.dataset.budgetItemId || null,
       priceMode
     };
   });
@@ -864,12 +1409,14 @@ function getOrderItemsFromForm() {
 function updateOrderSummary() {
   const items = getOrderItemsFromForm();
   const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const linkedItems = items.filter((item) => item.linkedBudgetId).length;
+  const linkedBudget = orderFields.linkedBudgetId.value ? getBudgetById(orderFields.linkedBudgetId.value) : null;
 
   output.orderTotal.textContent = formatCurrency(total);
   output.orderItemsCount.textContent = String(items.length);
-  output.orderLinkedItemsCount.textContent = String(linkedItems);
+  output.orderLinkedBudgetName.textContent = linkedBudget ? linkedBudget.projectName : "Pedido avulso";
   output.orderCurrentStatus.textContent = STATUS_LABELS[orderFields.orderStatus.value] || "Novo";
+  output.orderCurrentDueDate.textContent = formatDateForDisplay(orderFields.orderDueDate.value);
+  output.orderCurrentUrgency.textContent = URGENCY_LABELS[orderFields.orderUrgency.value] || "Normal";
   output.orderSummaryTotal.textContent = formatCurrency(total);
   saveOrderButton.textContent = editingOrderId ? "Atualizar pedido" : "Salvar pedido";
 }
@@ -877,12 +1424,20 @@ function updateOrderSummary() {
 function collectOrderData() {
   const customerName = orderFields.customerName.value.trim();
   const customerPhone = orderFields.customerPhone.value.trim();
+  const linkedBudgetId = orderFields.linkedBudgetId.value || null;
+  const linkedBudget = linkedBudgetId ? getBudgetById(linkedBudgetId) : null;
   const status = orderFields.orderStatus.value;
+  const dueDate = orderFields.orderDueDate.value;
+  const urgency = orderFields.orderUrgency.value;
   const notes = orderFields.orderNotes.value.trim();
   const items = getOrderItemsFromForm();
 
   if (!customerName || !customerPhone) {
     throw new Error("Preencha nome e telefone do cliente.");
+  }
+
+  if (!isValidPhone(customerPhone)) {
+    throw new Error("Informe um telefone com DDD e 8 ou 9 dígitos.");
   }
 
   if (items.length === 0) {
@@ -900,9 +1455,13 @@ function collectOrderData() {
 
   return {
     id: editingOrderId || generateId("order"),
+    linkedBudgetId,
+    linkedBudgetName: linkedBudget ? linkedBudget.projectName : null,
     customerName,
     customerPhone,
     status,
+    dueDate,
+    urgency,
     notes,
     items,
     total: items.reduce((sum, item) => sum + item.subtotal, 0),
@@ -942,8 +1501,7 @@ function renderOrders() {
     const card = document.createElement("article");
     card.className = "order-card";
     const itemsPreview = order.items.slice(0, 3).map((item) => {
-      const budgetTag = item.linkedBudgetName ? ` <span class="order-budget-tag">• ${item.linkedBudgetName}</span>` : "";
-      return `<div><strong>${item.quantity}x</strong> ${item.productName}${budgetTag}</div>`;
+      return `<div><strong>${item.quantity}x</strong> ${item.productName}</div>`;
     }).join("");
 
     card.innerHTML = `
@@ -951,8 +1509,17 @@ function renderOrders() {
         <div>
           <h4>${order.customerName}</h4>
           <div class="order-card-meta">
-            <span>${order.customerPhone}</span>
-            <span>${new Date(order.updatedAt || order.createdAt).toLocaleDateString("pt-BR")}</span>
+            <div class="order-card-meta-line">
+              <span>${order.customerPhone}</span>
+              <span>${new Date(order.updatedAt || order.createdAt).toLocaleDateString("pt-BR")}</span>
+            </div>
+            <div class="order-card-meta-line">
+              <span>${order.linkedBudgetName ? `Orçamento: ${order.linkedBudgetName}` : "Pedido avulso"}</span>
+            </div>
+            <div class="order-card-meta-line">
+              <span>Entrega: ${formatDateForDisplay(order.dueDate)}</span>
+              <span class="urgency-badge urgency-${order.urgency || "normal"}">${URGENCY_LABELS[order.urgency || "normal"]}</span>
+            </div>
           </div>
         </div>
         <span class="status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
@@ -978,23 +1545,38 @@ function renderOrders() {
 
 function loadOrderIntoForm(order) {
   editingOrderId = order.id;
+  orderFields.linkedBudgetId.value = order.linkedBudgetId || "";
+  populateOrderBudgetSelect(order.linkedBudgetId || "");
   orderFields.customerName.value = order.customerName;
   orderFields.customerPhone.value = order.customerPhone;
   orderFields.orderStatus.value = order.status;
+  orderFields.orderDueDate.value = order.dueDate || "";
+  orderFields.orderUrgency.value = order.urgency || "normal";
   orderFields.orderNotes.value = order.notes || "";
   orderItemsList.innerHTML = "";
   order.items.forEach((item) => addOrderItem(item));
   updateOrderSummary();
 }
 
-function resetOrderForm(prefillItems = []) {
+function resetOrderForm(prefill = {}) {
+  const { items = [], linkedBudgetId = "" } = prefill;
+
   editingOrderId = null;
   orderForm.reset();
+  populateOrderBudgetSelect(linkedBudgetId);
+  orderFields.linkedBudgetId.value = linkedBudgetId;
   orderFields.orderStatus.value = "novo";
+  orderFields.orderUrgency.value = "normal";
+  orderFields.orderDueDate.value = "";
   orderItemsList.innerHTML = "";
 
-  if (prefillItems.length > 0) {
-    prefillItems.forEach((item) => addOrderItem(item));
+  if (linkedBudgetId) {
+    loadApprovedBudgetIntoOrder(linkedBudgetId);
+    return;
+  }
+
+  if (items.length > 0) {
+    items.forEach((item) => addOrderItem(item));
   } else {
     addOrderItem();
   }
@@ -1005,9 +1587,7 @@ function resetOrderForm(prefillItems = []) {
 function resetBudgetForm() {
   calculatorForm.reset();
   populateClientsSelect();
-  fields.printerConsumption.value = "0.12";
-  fields.energyRate.value = "0.80";
-  fields.extraCosts.value = "0";
+  loadBudgetItemsIntoForm();
   emptyState.classList.remove("hidden");
   resultContent.classList.add("hidden");
   output.heroFilament.textContent = formatCurrency(0);
@@ -1015,7 +1595,42 @@ function resetBudgetForm() {
   output.heroSale.textContent = formatCurrency(0);
   output.customSaleCard.classList.add("hidden");
   output.resultClientName.textContent = "Cliente não selecionado";
+  output.budgetResultItemsList.innerHTML = "";
+  createOrderFromBudgetButton.classList.add("hidden");
+  approveBudgetButton.textContent = "Cliente aceitou este orçamento";
+  budgetApprovalHint.textContent = "Aprove o orçamento para liberá-lo na tela de pedidos.";
   currentBudgetResult = null;
+}
+
+function resetBudgetEntryFields() {
+  calculatorForm.reset();
+  populateClientsSelect();
+  loadBudgetItemsIntoForm();
+}
+
+function setBudgetApproval(isApproved) {
+  if (!currentBudgetResult) {
+    return;
+  }
+
+  const history = getBudgetHistory();
+  const updatedHistory = history.map((budget) => {
+    if (budget.id !== currentBudgetResult.id) {
+      return budget;
+    }
+
+    return {
+      ...budget,
+      isApproved,
+      updatedAt: new Date().toISOString()
+    };
+  });
+
+  saveBudgetHistory(updatedHistory);
+  currentBudgetResult = updatedHistory.find((budget) => budget.id === currentBudgetResult.id) || currentBudgetResult;
+  renderResult(currentBudgetResult);
+  renderBudgetHistory();
+  populateOrderBudgetSelect(orderFields.linkedBudgetId.value);
 }
 
 function updateDashboard() {
@@ -1117,19 +1732,14 @@ calculatorForm.addEventListener("submit", (event) => {
   const values = {
     clientId: budgetClientId.value,
     projectName: fields.projectName.value,
-    weight: fields.weight.value,
-    printTime: fields.printTime.value,
-    filamentPrice: fields.filamentPrice.value,
-    printerConsumption: fields.printerConsumption.value,
-    energyRate: fields.energyRate.value,
-    extraCosts: fields.extraCosts.value,
-    customSalePrice: fields.customSalePrice.value
+    items: getBudgetItemsFromForm()
   };
 
   try {
     const result = calculateCosts(values);
     const savedBudget = addToBudgetHistory(result);
     renderResult(savedBudget);
+    resetBudgetEntryFields();
     activateSection("budgets");
   } catch (error) {
     window.alert(error.message);
@@ -1177,12 +1787,15 @@ clearFormButton.addEventListener("click", resetBudgetForm);
 clearClientFormButton.addEventListener("click", resetClientForm);
 clearProductFormButton.addEventListener("click", resetProductForm);
 clearOrderFormButton.addEventListener("click", () => resetOrderForm());
+addBudgetItemButton.addEventListener("click", () => addBudgetItem());
 addOrderItemButton.addEventListener("click", () => addOrderItem());
 
 clearHistoryButton.addEventListener("click", () => {
   localStorage.removeItem(BUDGET_STORAGE_KEY);
   renderBudgetHistory();
-  refreshBudgetOptionsForOrderItems();
+  populateOrderBudgetSelect();
+  resetBudgetForm();
+  resetOrderForm();
   updateDashboard();
 });
 
@@ -1199,6 +1812,7 @@ clearProductsButton.addEventListener("click", () => {
   renderProducts();
   refreshProductOptionsForOrderItems();
   resetProductForm();
+  loadBudgetItemsIntoForm();
   resetOrderForm();
   updateDashboard();
 });
@@ -1215,35 +1829,54 @@ createOrderFromBudgetButton.addEventListener("click", () => {
     return;
   }
 
-  resetOrderForm([{
-    productId: "",
-    linkedBudgetId: currentBudgetResult.id,
-    priceMode: currentBudgetResult.customSale ? "custom" : "x3",
-    quantity: 1,
-    unitPrice: currentBudgetResult.customSale
-      ? Number(currentBudgetResult.customSale.salePrice.toFixed(2))
-      : Number(currentBudgetResult.suggestions[1].salePrice.toFixed(2))
-  }]);
+  if (!currentBudgetResult.isApproved) {
+    window.alert("Aprove o orçamento antes de criar um pedido.");
+    return;
+  }
+
+  resetOrderForm({ linkedBudgetId: currentBudgetResult.id });
   activateSection("orders");
 });
 
-fields.printTime.addEventListener("input", () => {
-  fields.printTime.value = maskTimeInput(fields.printTime.value);
-});
+downloadBudgetPdfButton.addEventListener("click", async () => {
+  if (!currentBudgetResult) {
+    window.alert("Calcule ou selecione um orçamento antes de gerar o PDF.");
+    return;
+  }
 
-fields.printTime.addEventListener("blur", () => {
-  const hours = parseTimeToHours(fields.printTime.value);
-  if (hours !== null) {
-    const totalMinutes = Math.round(hours * 60);
-    const wholeHours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    fields.printTime.value = `${String(wholeHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  try {
+    await generateBudgetPdf(currentBudgetResult);
+  } catch (error) {
+    window.alert(error.message || "Não foi possível gerar o PDF deste orçamento.");
   }
 });
 
+approveBudgetButton.addEventListener("click", () => {
+  if (!currentBudgetResult) {
+    window.alert("Calcule ou selecione um orçamento antes de aprová-lo.");
+    return;
+  }
+
+  setBudgetApproval(true);
+});
+
 orderFields.orderStatus.addEventListener("change", updateOrderSummary);
+orderFields.orderDueDate.addEventListener("change", updateOrderSummary);
+orderFields.orderUrgency.addEventListener("change", updateOrderSummary);
+orderFields.linkedBudgetId.addEventListener("change", () => {
+  loadApprovedBudgetIntoOrder(orderFields.linkedBudgetId.value);
+});
+
+clientFields.phone.addEventListener("input", () => {
+  clientFields.phone.value = maskPhoneInput(clientFields.phone.value);
+});
+
+orderFields.customerPhone.addEventListener("input", () => {
+  orderFields.customerPhone.value = maskPhoneInput(orderFields.customerPhone.value);
+});
 
 populateClientsSelect();
+populateOrderBudgetSelect();
 renderBudgetHistory();
 renderClients();
 renderProducts();
@@ -1254,5 +1887,6 @@ setupInstallPrompt();
 registerServiceWorker();
 resetClientForm();
 resetProductForm();
+loadBudgetItemsIntoForm();
 resetOrderForm();
 updateDashboard();

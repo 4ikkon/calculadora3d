@@ -1,12 +1,15 @@
-const CACHE_NAME = "marinsmanager-cache-v6";
+const CACHE_NAME = "marinsmanager-cache-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./style.css",
   "./script.js",
   "./manifest.webmanifest",
-  "./assets/icon-192.svg",
-  "./assets/icon-512.svg"
+  "./assets/favicon.ico",
+  "./assets/icon-192.png",
+  "./assets/icon-512.png",
+  "./assets/logo-pdf.png",
+  "./assets/jspdf.umd.min.js"
 ];
 
 self.addEventListener("install", (event) => {
